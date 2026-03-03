@@ -45,56 +45,56 @@ db.exec(`
 // البيانات الثابتة
 // ==============================
 const HOUSES = [
-  { id: 'h1',  name: '🏠 غرفة مشتركة',       price: 5_000,    income: 30 },
-  { id: 'h2',  name: '🏠 شقة صغيرة',          price: 15_000,   income: 80 },
-  { id: 'h3',  name: '🏠 شقة عادية',           price: 30_000,   income: 150 },
-  { id: 'h4',  name: '🏠 شقة مفروشة',          price: 60_000,   income: 280 },
-  { id: 'h5',  name: '🏡 بيت شعبي',            price: 100_000,  income: 450 },
-  { id: 'h6',  name: '🏡 بيت عائلي',           price: 180_000,  income: 800 },
-  { id: 'h7',  name: '🏡 فيلا صغيرة',          price: 300_000,  income: 1_300 },
-  { id: 'h8',  name: '🏡 فيلا عادية',           price: 500_000,  income: 2_100 },
-  { id: 'h9',  name: '🏡 فيلا فاخرة',           price: 800_000,  income: 3_300 },
-  { id: 'h10', name: '🏰 قصر صغير',            price: 1_200_000, income: 5_000 },
-  { id: 'h11', name: '🏰 قصر عصري',            price: 1_800_000, income: 7_500 },
-  { id: 'h12', name: '🏰 قصر ملكي',            price: 2_500_000, income: 10_500 },
-  { id: 'h13', name: '🌊 شاليه ساحلي',          price: 3_500_000, income: 14_500 },
-  { id: 'h14', name: '🌴 فيلا جزيرة خاصة',      price: 5_000_000, income: 20_000 },
-  { id: 'h15', name: '🏔 شاليه جبلي',           price: 7_000_000, income: 28_000 },
-  { id: 'h16', name: '✈️ بنتهاوس طابق 50',      price: 10_000_000, income: 40_000 },
-  { id: 'h17', name: '🌍 قصر تاريخي',           price: 15_000_000, income: 60_000 },
-  { id: 'h18', name: '🚀 برج سكني خاص',         price: 25_000_000, income: 100_000 },
-  { id: 'h19', name: '👑 قصر فضائي',            price: 50_000_000, income: 200_000 },
-  { id: 'h20', name: '💎 قصر الأمراء',          price: 100_000_000, income: 420_000 },
+  { id: 'h1',  name: '🏠 غرفة مشتركة',       price: 5_000,    income: 70 },
+  { id: 'h2',  name: '🏠 شقة صغيرة',          price: 15_000,   income: 110 },
+  { id: 'h3',  name: '🏠 شقة عادية',           price: 30_000,   income: 180 },
+  { id: 'h4',  name: '🏠 شقة مفروشة',          price: 60_000,   income: 305 },
+  { id: 'h5',  name: '🏡 بيت شعبي',            price: 100_000,  income: 465 },
+  { id: 'h6',  name: '🏡 بيت عائلي',           price: 180_000,  income: 820 },
+  { id: 'h7',  name: '🏡 فيلا صغيرة',          price: 300_000,  income: 1_800 },
+  { id: 'h8',  name: '🏡 فيلا عادية',           price: 500_000,  income: 2_800 },
+  { id: 'h9',  name: '🏡 فيلا فاخرة',           price: 800_000,  income: 3_800 },
+  { id: 'h10', name: '🏰 قصر صغير',            price: 1_200_000, income: 5_500 },
+  { id: 'h11', name: '🏰 قصر عصري',            price: 1_800_000, income: 7_900 },
+  { id: 'h12', name: '🏰 قصر ملكي',            price: 2_500_000, income: 10_900 },
+  { id: 'h13', name: '🌊 شاليه ساحلي',          price: 3_500_000, income: 15_700 },
+  { id: 'h14', name: '🌴 فيلا جزيرة خاصة',      price: 5_000_000, income: 21_500 },
+  { id: 'h15', name: '🏔 شاليه جبلي',           price: 7_000_000, income: 29_000 },
+  { id: 'h16', name: '✈️ بنتهاوس طابق 50',      price: 10_000_000, income: 43_000 },
+  { id: 'h17', name: '🌍 قصر تاريخي',           price: 15_000_000, income: 65_000 },
+  { id: 'h18', name: '🚀 برج سكني خاص',         price: 25_000_000, income: 105_000 },
+  { id: 'h19', name: '👑 قصر فضائي',            price: 50_000_000, income: 207_000 },
+  { id: 'h20', name: '💎 قصر الأمراء',          price: 100_000_000, income: 430_000 },
 ];
 
 const COMPANIES = [
-  { id: 'c1',  name: '🛒 بقالة صغيرة',         price: 10_000,   income: 70 },
-  { id: 'c2',  name: '☕ كافيه',               price: 25_000,   income: 160 },
-  { id: 'c3',  name: '🍔 مطعم وجبات سريعة',     price: 50_000,   income: 310 },
-  { id: 'c4',  name: '💈 صالون حلاقة',          price: 80_000,   income: 490 },
-  { id: 'c5',  name: '🏪 متجر إلكترونيات',      price: 150_000,  income: 900 },
-  { id: 'c6',  name: '🚗 معرض سيارات',          price: 300_000,  income: 1_800 },
-  { id: 'c7',  name: '🏋️ صالة رياضية',          price: 500_000,  income: 2_900 },
-  { id: 'c8',  name: '🏨 فندق صغير',            price: 800_000,  income: 4_600 },
-  { id: 'c9',  name: '🏗 شركة مقاولات',         price: 1_200_000, income: 7_000 },
-  { id: 'c10', name: '💊 صيدلية كبرى',          price: 1_800_000, income: 10_500 },
-  { id: 'c11', name: '✈️ شركة طيران',           price: 3_000_000, income: 17_000 },
-  { id: 'c12', name: '📱 شركة تقنية',           price: 5_000_000, income: 28_000 },
-  { id: 'c13', name: '🏭 مصنع كبير',            price: 8_000_000, income: 45_000 },
-  { id: 'c14', name: '🛢 شركة نفط',             price: 12_000_000, income: 70_000 },
-  { id: 'c15', name: '🏦 بنك خاص',              price: 20_000_000, income: 115_000 },
-  { id: 'c16', name: '🌐 شركة إنترنت عالمية',   price: 35_000_000, income: 200_000 },
-  { id: 'c17', name: '🚀 شركة فضاء',            price: 60_000_000, income: 340_000 },
-  { id: 'c18', name: '💎 شركة مجوهرات ملكية',   price: 100_000_000, income: 560_000 },
-  { id: 'c19', name: '🌍 إمبراطورية تجارية',    price: 200_000_000, income: 1_100_000 },
-  { id: 'c20', name: '👑 احتكار عالمي',         price: 500_000_000, income: 2_800_000 },
+  { id: 'c1',  name: '🛒 بقالة صغيرة',         price: 10_000,   income: 100 },
+  { id: 'c2',  name: '☕ كافيه',               price: 25_000,   income: 200 },
+  { id: 'c3',  name: '🍔 مطعم وجبات سريعة',     price: 50_000,   income: 350 },
+  { id: 'c4',  name: '💈 صالون حلاقة',          price: 80_000,   income: 590 },
+  { id: 'c5',  name: '🏪 متجر إلكترونيات',      price: 150_000,  income: 1200 },
+  { id: 'c6',  name: '🚗 معرض سيارات',          price: 300_000,  income: 2_800 },
+  { id: 'c7',  name: '🏋️ صالة رياضية',          price: 500_000,  income: 3_900 },
+  { id: 'c8',  name: '🏨 فندق صغير',            price: 800_000,  income: 5_600 },
+  { id: 'c9',  name: '🏗 شركة مقاولات',         price: 1_200_000, income: 8_000 },
+  { id: 'c10', name: '💊 صيدلية كبرى',          price: 1_800_000, income: 11_500 },
+  { id: 'c11', name: '✈️ شركة طيران',           price: 3_000_000, income: 18_000 },
+  { id: 'c12', name: '📱 شركة تقنية',           price: 5_000_000, income: 29_000 },
+  { id: 'c13', name: '🏭 مصنع كبير',            price: 8_000_000, income: 47_000 },
+  { id: 'c14', name: '🛢 شركة نفط',             price: 12_000_000, income: 72_000 },
+  { id: 'c15', name: '🏦 بنك خاص',              price: 20_000_000, income: 117_000 },
+  { id: 'c16', name: '🌐 شركة إنترنت عالمية',   price: 35_000_000, income: 207_000 },
+  { id: 'c17', name: '🚀 شركة فضاء',            price: 60_000_000, income: 344_000 },
+  { id: 'c18', name: '💎 شركة مجوهرات ملكية',   price: 100_000_000, income: 565_000 },
+  { id: 'c19', name: '🌍 إمبراطورية تجارية',    price: 200_000_000, income: 1_150_000 },
+  { id: 'c20', name: '👑 احتكار عالمي',         price: 500_000_000, income: 2_850_000 },
 ];
 
 const LEVELS = [
-  { level: 1, min: 0,           name: '👶 مبتدئ',    salary: 500 },
-  { level: 2, min: 10_000,      name: '🧑 عامل',     salary: 1_000 },
-  { level: 3, min: 50_000,      name: '💼 موظف',     salary: 2_500 },
-  { level: 4, min: 200_000,     name: '📊 مدير',     salary: 6_000 },
+  { level: 1, min: 0,           name: '👶 مبتدئ',    salary: 1_000 },
+  { level: 2, min: 10_000,      name: '🧑 عامل',     salary: 2_000 },
+  { level: 3, min: 50_000,      name: '💼 موظف',     salary: 2_700 },
+  { level: 4, min: 200_000,     name: '📊 مدير',     salary: 6_900 },
   { level: 5, min: 1_000_000,   name: '🏢 رجل أعمال', salary: 15_000 },
   { level: 6, min: 5_000_000,   name: '💎 ثري',      salary: 40_000 },
   { level: 7, min: 20_000_000,  name: '👑 مليونير',  salary: 100_000 },
@@ -816,10 +816,10 @@ client.on('messageCreate', async (msg) => {
     // -------- أوامر الإدارة --------
     if (!msg.member?.permissions.has(PermissionFlagsBits.Administrator)) return;
 
-    if (cmd === 'أعطِ' || cmd === 'اعطي') {
+    if (cmd === 'أعطِ' || cmd === 'تفضل') {
       const target = msg.mentions.users.first();
       const amount = parseInt(args[1]);
-      if (!target || isNaN(amount)) return msg.reply('❌ الاستخدام: `اعطي @شخص مبلغ`');
+      if (!target || isNaN(amount)) return msg.reply('❌ الاستخدام: `تفضل @شخص مبلغ`');
       getUser(target.id, target.username);
       db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(amount, target.id);
       return msg.reply(`✅ أضفت **${fmt(amount)}** لـ ${target.username}`);
@@ -922,3 +922,4 @@ function startConfiscationSystem() {
 
 
 client.login(process.env.TOKEN);
+
