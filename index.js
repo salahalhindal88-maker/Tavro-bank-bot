@@ -211,7 +211,6 @@ const client = new Client({
 
 client.once('ready', () => {
   console.log(`✅ البوت شغال: ${client.user.tag}`);
-  // تشغيل الأنظمة التلقائية
   startTaxSystem();
   startConfiscationSystem();
 });
@@ -228,9 +227,6 @@ client.on('messageCreate', async (msg) => {
   const args = parts.slice(1);
   const user = getUser(msg.author.id, msg.author.username);
 
-  // ==============================
-  // أوامر
-  // ==============================
   try {
 
     // -------- ملفي / بروفايل --------
@@ -257,7 +253,7 @@ client.on('messageCreate', async (msg) => {
           { name: '💳 القرض', value: u.loan > 0 ? fmt(u.loan) : 'لا يوجد', inline: true },
           { name: '🛡 الحماية', value: isProtected ? `⏰ ${fmtTime(u.protection_until - Date.now())}` : '❌ غير مفعلة', inline: true },
         )
-        .setFooter({ text: `راتبك: ${fmt(level.salary)} كل 4 ساعات` })
+        .setFooter({ text: `راتبك: ${fmt(level.salary)} كل ساعة` })
         .setTimestamp();
 
       return msg.reply({ embeds: [embed] });
@@ -296,7 +292,7 @@ client.on('messageCreate', async (msg) => {
           { name: '⚖️ ضريبة 1%', value: fmt(tax), inline: true },
           { name: '✅ الصافي', value: fmt(net), inline: true },
         )
-        .setFooter({ text: 'الراتب القادم بعد 4 ساعات' });
+        .setFooter({ text: 'الراتب القادم بعد ساعة' });
       return msg.reply({ embeds: [embed] });
     }
 
@@ -315,7 +311,7 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({ embeds: [
         new EmbedBuilder().setTitle(job).setColor('#ffd700')
           .setDescription(`عملت وكسبت **${fmt(earned)}**!`)
-          .setFooter({ text: 'ارجع كل ساعه للعمل' })
+          .setFooter({ text: 'ارجع كل ساعة للعمل' })
       ]});
     }
 
@@ -385,7 +381,7 @@ client.on('messageCreate', async (msg) => {
 
     // -------- شراء --------
     if (cmd === 'شراء') {
-      const type = args[0]; // بيت أو شركة
+      const type = args[0];
       const itemId = args[1]?.toLowerCase();
 
       if (!type || !itemId || !['بيت', 'شركة', 'شركه'].includes(type))
@@ -415,7 +411,7 @@ client.on('messageCreate', async (msg) => {
 
     // -------- بيع --------
     if (cmd === 'بيع') {
-      const propId = parseInt(args[0]);
+      const propId = parseInt(args.find(a => !isNaN(parseInt(a))));
       if (isNaN(propId)) return msg.reply('❌ الاستخدام: `بيع [رقم العقار]` — شوف `ممتلكاتي`');
 
       const prop = db.prepare('SELECT * FROM properties WHERE id = ? AND owner_id = ?').get(propId, msg.author.id);
@@ -496,8 +492,9 @@ client.on('messageCreate', async (msg) => {
       if (isNaN(amount) || amount <= 0) return msg.reply('❌ الاستخدام: `قرض المبلغ`');
       if (user.loan > 0) return msg.reply(`❌ عندك قرض قائم! سدده أولاً بـ \`سداد\``);
 
-      const max = Math.max(10_000, (user.balance + user.bank) * 2);
-      if (amount > max) return msg.reply(`❌ الحد الأقصى: **${fmt(max)}**`);
+      // ✅ الحد الأقصى للقرض 20,000 فقط
+      const max = 20_000;
+      if (amount > max) return msg.reply(`❌ الحد الأقصى للقرض: **${fmt(max)}**`);
 
       const repay = Math.floor(amount * 1.10);
       const due = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -685,7 +682,7 @@ client.on('messageCreate', async (msg) => {
     }
 
     // -------- إحصائياتي --------
-    if (cmd === 'إحصائياتي' || cmd === 'احصائياتي') {
+    if (['إحصائياتي', 'احصائياتي', 'احصاياتي', 'إحصاياتي'].includes(cmd)) {
       const props = db.prepare('SELECT * FROM properties WHERE owner_id = ?').all(msg.author.id);
       const level = getLevel(user.balance + user.bank);
       const totalIncome = props.reduce((s, p) => s + p.income, 0);
@@ -768,7 +765,7 @@ client.on('messageCreate', async (msg) => {
               '`إيداع [مبلغ/كل]` — أودع في البنك',
               '`سحب [مبلغ/كل]` — اسحب من البنك',
               '`تحويل @شخص مبلغ` — حوّل فلوس',
-              '`قرض مبلغ` — اطلب قرضاً',
+              '`قرض مبلغ` — اطلب قرضاً (حد أقصى 20K)',
               '`سداد` — سدد قرضك',
             ].join('\n')
           },
@@ -829,7 +826,10 @@ client.on('messageCreate', async (msg) => {
       const target = msg.mentions.users.first();
       const amount = parseInt(args[1]);
       if (!target || isNaN(amount)) return msg.reply('❌ الاستخدام: `خذ @شخص مبلغ`');
+      db.prepare('UPDATE users SET balance = balance + ?, balance = MAX(0, balance - ?) WHERE id = ?');
+      // الفلوس تروح للأدمن
       db.prepare('UPDATE users SET balance = MAX(0, balance - ?) WHERE id = ?').run(amount, target.id);
+      db.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').run(amount, msg.author.id);
       return msg.reply(`✅ أخذت **${fmt(amount)}** من ${target.username}`);
     }
 
@@ -920,6 +920,4 @@ function startConfiscationSystem() {
   }, 60 * 60 * 1000);
 }
 
-
 client.login(process.env.TOKEN);
-
