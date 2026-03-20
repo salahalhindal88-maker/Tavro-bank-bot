@@ -2,15 +2,12 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 const Database = require('better-sqlite3');
 
-// ==============================
-// إعدادات السيرفر (عدّلها حسب سيرفرك)
-// ==============================
 const CONFIG = {
-  ECONOMY_CHANNEL_ID: '1478138274546454732',      // ID قناة الاقتصاد (اتركه فارغ للسماح في كل القنوات)
-  LOG_CHANNEL_ID: '',          // ID قناة اللوق
-  RICH_ROLE_ID: '',            // ID رول الأثرياء (يُعطى تلقائياً لمن يتجاوز 1M)
-  MILLIONAIRE_ROLE_ID: '',     // ID رول المليونير (يُعطى تلقائياً لمن يتجاوز 10M)
-  OWNER_ID: '717481322683301940,    // ← فقط هذا الشخص يقدر يستخدم أوامر الإدارة
+  ECONOMY_CHANNEL_ID: '1478138274546454732',
+  LOG_CHANNEL_ID: '',
+  RICH_ROLE_ID: '',
+  MILLIONAIRE_ROLE_ID: '',
+  OWNER_ID: '717481322683301940',
 };
 
 const db = new Database('economy.db');
@@ -62,6 +59,11 @@ db.exec(`
   );
   INSERT OR IGNORE INTO government (id, treasury) VALUES (1, 0);
 `);
+
+// تحديث الأعمدة الجديدة إذا كانت قاعدة البيانات قديمة
+try { db.exec(`ALTER TABLE users ADD COLUMN last_transfer INTEGER DEFAULT 0`); } catch(e) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN last_mine INTEGER DEFAULT 0`); } catch(e) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN reputation INTEGER DEFAULT 100`); } catch(e) {}
 
 const HOUSES = [
   { id: 'h1',  name: '🏠 غرفة مشتركة',      price: 5_000,       income: 70 },
@@ -275,7 +277,6 @@ client.on('messageCreate', async (msg) => {
 
   try {
 
-    // -------- ملفي --------
     if (cmd === 'ملفي' || cmd === 'بروفايل') {
       const target = msg.mentions.users.first();
       const u      = target ? getUser(target.id, target.username) : user;
@@ -307,7 +308,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- رصيد --------
     if (cmd === 'رصيد') {
       const repLvl = getReputation(user.reputation);
       return msg.reply({ embeds: [
@@ -321,13 +321,11 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- تحقق من إيقاف الخدمات --------
     const repLvl = getReputation(user.reputation);
     const allowedWhenBlocked = ['ملفي','بروفايل','رصيد','وقت','اوامر','أوامر','سمعة'];
     if (repLvl.blocked && !allowedWhenBlocked.includes(cmd))
       return msg.reply('🚫 **خدماتك موقوفة!** سمعتك وصلت الصفر.\nاكتب `سمعة` لمعرفة كيف ترفعها.');
 
-    // -------- راتب --------
     if (cmd === 'راتب') {
       const left = cooldownLeft(user, 'راتب');
       if (left > 0) return msg.reply(`⏰ راتبك القادم بعد **${fmtTime(left)}**`);
@@ -347,7 +345,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- عمل --------
     if (cmd === 'عمل') {
       const left = cooldownLeft(user, 'عمل');
       if (left > 0) return msg.reply(`⏰ تعب! ارجع بعد **${fmtTime(left)}**`);
@@ -362,7 +359,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- تحويل --------
     if (cmd === 'تحويل') {
       const target = msg.mentions.users.first();
       const amount = parseAmount(args[1], user.balance);
@@ -391,7 +387,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- إيداع --------
     if (cmd === 'إيداع' || cmd === 'ايداع') {
       const amount = parseAmount(args[0], user.balance);
       if (isNaN(amount) || amount <= 0) return msg.reply('❌ الاستخدام: `إيداع [مبلغ/كل/نص/ربع/ثلث]`');
@@ -400,7 +395,6 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({ embeds: [new EmbedBuilder().setTitle('🏦 تم الإيداع').setColor('#00ff88').setDescription(`أودعت **${fmt(amount)}** في البنك`)] });
     }
 
-    // -------- سحب --------
     if (cmd === 'سحب') {
       const amount = parseAmount(args[0], user.bank);
       if (isNaN(amount) || amount <= 0) return msg.reply('❌ الاستخدام: `سحب [مبلغ/كل/نص/ربع/ثلث]`');
@@ -409,12 +403,10 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({ embeds: [new EmbedBuilder().setTitle('💰 تم السحب').setColor('#00ff88').setDescription(`سحبت **${fmt(amount)}** من البنك`)] });
     }
 
-    // -------- الأسواق --------
     if (cmd === 'بيوت')  { const {embed,totalPages}=buildHousesEmbed(0);    return msg.reply({embeds:[embed],components:[buildPageButtons(0,totalPages,'houses')]}); }
     if (cmd === 'شركات') { const {embed,totalPages}=buildCompaniesEmbed(0); return msg.reply({embeds:[embed],components:[buildPageButtons(0,totalPages,'companies')]}); }
     if (cmd === 'مناجم') { const {embed,totalPages}=buildMinesEmbed(0);     return msg.reply({embeds:[embed],components:[buildPageButtons(0,totalPages,'mines')]}); }
 
-    // -------- شراء --------
     if (cmd === 'شراء') {
       const type = args[0], itemId = args[1]?.toLowerCase();
       if (type === 'منجم') {
@@ -453,7 +445,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- بيع --------
     if (cmd === 'بيع') {
       if (args[0] === 'منجم') {
         const myMine = db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
@@ -496,7 +487,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- ممتلكاتي --------
     if (cmd === 'ممتلكاتي') {
       const props = db.prepare('SELECT * FROM properties WHERE owner_id=?').all(msg.author.id);
       if (props.length === 0) return msg.reply('🏚 ليس لديك ممتلكات!');
@@ -513,7 +503,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- تحصيل --------
     if (cmd === 'تحصيل') {
       const left = cooldownLeft(user, 'تحصيل');
       if (left > 0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
@@ -532,7 +521,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- تعدين --------
     if (cmd === 'تعدين') {
       const myMine = db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
       if (!myMine) return msg.reply('❌ ليس لديك منجم! اكتب `مناجم`');
@@ -561,7 +549,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- مستودعي --------
     if (cmd === 'مستودعي') {
       const inv = db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND quantity>0').all(msg.author.id);
       if (inv.length === 0) return msg.reply('📦 مستودعك فارغ!');
@@ -576,7 +563,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- مناجمي --------
     if (cmd === 'مناجمي') {
       const myMine = db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
       if (!myMine) return msg.reply('❌ ليس لديك منجم!');
@@ -595,7 +581,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- قرض --------
     if (cmd === 'قرض') {
       const amount = parseAmount(args[0]);
       if (isNaN(amount) || amount <= 0) return msg.reply('❌ الاستخدام: `قرض المبلغ`');
@@ -613,7 +598,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- سداد --------
     if (cmd === 'سداد') {
       if (user.loan === 0) return msg.reply('✅ ليس عليك أي قرض!');
       if (user.balance < user.loan) return msg.reply(`❌ تحتاج **${fmt(user.loan)}**`);
@@ -623,7 +607,6 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({ embeds: [new EmbedBuilder().setTitle('✅ تم سداد القرض!').setColor('#00ff88').setDescription(`سددت **${fmt(loan)}** بنجاح! 🎉\n⭐ +5 سمعة على الالتزام!`)] });
     }
 
-    // -------- حماية --------
     if (cmd === 'حماية') {
       const opts = { '6':{hours:6,price:5_000}, '12':{hours:12,price:9_000}, '24':{hours:24,price:15_000}, '72':{hours:72,price:35_000} };
       const opt  = opts[args[0]];
@@ -641,7 +624,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- مجازفة --------
     if (cmd === 'مجازفة') {
       const left = cooldownLeft(user, 'مجازفة');
       if (left > 0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
@@ -660,7 +642,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- استثمر --------
     if (cmd === 'استثمر') {
       const left = cooldownLeft(user, 'استثمر');
       if (left > 0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
@@ -686,7 +667,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- تداول --------
     if (cmd === 'تداول') {
       const left = cooldownLeft(user, 'تداول');
       if (left > 0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
@@ -709,7 +689,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- سرقة --------
     if (cmd === 'سرقة') {
       const left = cooldownLeft(user, 'سرقة');
       if (left > 0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
@@ -742,7 +721,6 @@ client.on('messageCreate', async (msg) => {
       }
     }
 
-    // -------- سمعة --------
     if (cmd === 'سمعة') {
       const repLvl  = getReputation(user.reputation);
       const nextLvl = REPUTATION_LEVELS.find(r => r.min > user.reputation);
@@ -757,7 +735,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- متصدرون --------
     if (cmd === 'متصدرون' || cmd === 'ليدربورد') {
       const top    = db.prepare('SELECT *,(balance+bank) as total FROM users ORDER BY total DESC LIMIT 10').all();
       const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
@@ -768,7 +745,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- إحصائياتي --------
     if (['إحصائياتي','احصائياتي','احصاياتي','إحصاياتي'].includes(cmd)) {
       const props  = db.prepare('SELECT * FROM properties WHERE owner_id=?').all(msg.author.id);
       const level  = getLevel(user.balance + user.bank);
@@ -791,7 +767,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- الحكومة --------
     if (cmd === 'الحكومة' || cmd === 'بنك') {
       const gov = db.prepare('SELECT * FROM government WHERE id=1').get();
       const cnt = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
@@ -802,7 +777,6 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // -------- وقت --------
     if (cmd === 'وقت') {
       const myMine   = db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
       const mineLeft = myMine ? Math.max(0, MINE_COOLDOWN - (Date.now() - (myMine.last_mined||0))) : -1;
@@ -821,7 +795,6 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({ embeds: [new EmbedBuilder().setTitle(`⏰ أوقات الأوامر — ${msg.author.username}`).setColor('#3498db').addFields(...fields).setTimestamp()] });
     }
 
-    // -------- اوامر --------
     if (cmd === 'اوامر' || cmd === 'أوامر') {
       return msg.reply({ embeds: [
         new EmbedBuilder().setTitle('📋 قائمة الأوامر الكاملة').setColor('#4e8aff')
@@ -838,9 +811,7 @@ client.on('messageCreate', async (msg) => {
       ]});
     }
 
-    // ==============================
     // أوامر الإدارة — فقط OWNER_ID
-    // ==============================
     if (msg.author.id !== CONFIG.OWNER_ID) return;
 
     if (cmd === 'تفضل' || cmd === 'أعطِ') {
@@ -872,13 +843,10 @@ client.on('messageCreate', async (msg) => {
       return msg.reply(`✅ تم ريست حساب **${target.username}**`);
     }
 
-    // -------- ريست_الكل --------
     if (cmd === 'ريست_الكل') {
       if (args[0] !== 'تأكيد')
         return msg.reply('⚠️ هذا الأمر يرست **كل** الحسابات!\nللتأكيد اكتب: `ريست_الكل تأكيد`');
-
-      db.prepare(`UPDATE users SET
-        balance=5000, bank=0, loan=0, loan_due=0, reputation=100,
+      db.prepare(`UPDATE users SET balance=5000, bank=0, loan=0, loan_due=0, reputation=100,
         last_salary=0, last_work=0, last_gamble=0, last_invest=0,
         last_trade=0, last_rob=0, last_collect=0, last_transfer=0,
         last_mine=0, protection_until=0`).run();
@@ -886,7 +854,6 @@ client.on('messageCreate', async (msg) => {
       db.prepare('DELETE FROM user_mines').run();
       db.prepare('DELETE FROM mine_inventory').run();
       db.prepare('UPDATE government SET treasury=0').run();
-
       await sendLog(client, msg.guildId, `🔄 ريست كامل للاقتصاد بواسطة ${msg.author.username}`);
       return msg.reply('✅ تم ريست **كل** الحسابات والاقتصاد بالكامل! 🔄');
     }
