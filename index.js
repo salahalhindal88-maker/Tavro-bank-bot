@@ -68,6 +68,7 @@ try { db.exec(`ALTER TABLE users ADD COLUMN last_transfer INTEGER DEFAULT 0`); }
 try { db.exec(`ALTER TABLE users ADD COLUMN last_mine INTEGER DEFAULT 0`); } catch(e) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN reputation INTEGER DEFAULT 100`); } catch(e) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN mine_sold_at INTEGER DEFAULT 0`); } catch(e) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN last_lootbox INTEGER DEFAULT 0`); } catch(e) {}
 try { db.exec(`ALTER TABLE trips ADD COLUMN country TEXT DEFAULT 'غير محدد'`); } catch(e) {}
 
 // ==============================
@@ -415,6 +416,8 @@ client.on('messageCreate', async (msg) => {
         const boxType=args[1];
         const box=LOOT_BOXES[boxType];
         if(!box) return msg.reply(`❌ الأنواع المتاحة: ${Object.keys(LOOT_BOXES).map(k=>`\`${k}\``).join(' | ')}`);
+        const lootLeft=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+        if(lootLeft>0) return msg.reply(`⏰ تقدر تشتري صندوق جديد بعد **${fmtTime(lootLeft)}**`);
         if(user.balance<box.price) return msg.reply(`❌ تحتاج **${fmt(box.price)}** لفتح صندوق ${boxType}`);
         db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(box.price,msg.author.id);
         const prize=rollPrize(box.prizes);
@@ -427,6 +430,7 @@ client.on('messageCreate', async (msg) => {
           db.prepare('UPDATE users SET protection_until=? WHERE id=?').run(until,msg.author.id);
         }
         db.prepare('INSERT INTO loot_boxes (user_id,box_type,prize,prize_value) VALUES (?,?,?,?)').run(msg.author.id,boxType,prize.name,prize.value);
+        db.prepare('UPDATE users SET last_lootbox=? WHERE id=?').run(Date.now(),msg.author.id);
         const profit=gained-box.price;
         return msg.reply({embeds:[new EmbedBuilder().setTitle(`${box.emoji} فتحت صندوق ${boxType}!`).setColor(box.color)
           .addFields(
@@ -782,6 +786,8 @@ client.on('messageCreate', async (msg) => {
         {name:'💸 تحويل',value:tranLeft>0?`⏰ ${fmtTime(tranLeft)}`:'✅ جاهز',inline:true},
       ];
       if(mineLeft>=0) fields.push({name:'⛏️ تعدين',value:mineLeft>0?`⏰ ${fmtTime(mineLeft)}`:'✅ جاهز',inline:true});
+      const lootCooldown=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+      fields.push({name:'🎁 صندوق',value:lootCooldown>0?`⏰ ${fmtTime(lootCooldown)}`:'✅ جاهز',inline:true});
       return msg.reply({embeds:[new EmbedBuilder().setTitle(`⏰ أوقات الأوامر — ${msg.author.username}`).setColor('#3498db').addFields(...fields).setTimestamp()]});
     }
 
