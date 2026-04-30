@@ -851,54 +851,117 @@ client.on('messageCreate', async (msg) => {
 
     // مجازفة
 if (cmd==='مجازفة') {
-  const left=cooldownLeft(user,'مجازفة'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'مجازفة'); 
+  if(left>0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
+
   const amount=parseAmount(args[0],user.balance);
-  if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: مجازفة [مبلغ/نص/ربع/كل] (الحد الأدنى 100)');
+  if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: `مجازفة [مبلغ/نص/ربع/كل]` (الحد الأدنى 100)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
+
   const win=Math.random()>0.55; // 45% ربح فقط
   db.prepare('UPDATE users SET last_gamble=? WHERE id=?').run(Date.now(),msg.author.id);
+
   if(win){
     let gain=slaveCut(msg.author.id,amount,'المجازفة');
     db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle('🎉 ربحت!').setColor('#00ff88').addFields({name:'🎲',value:'✅ فزت',inline:true},{name:'💰 الربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle('🎉 ربحت!')
+        .setColor('#00ff88')
+        .addFields(
+          {name:'🎲',value:'✅ فزت',inline:true},
+          {name:'💰 الربح',value:fmt(gain),inline:true},
+          {name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true}
+        )
+      ]
+    });
   } else {
     db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(amount,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle('😭 خسرت!').setColor('#e74c3c').addFields({name:'🎲',value:'❌ خسرت',inline:true},{name:'💰 الخسارة',value:fmt(amount),inline:true},{name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-amount)),inline:true})]});
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle('😭 خسرت!')
+        .setColor('#e74c3c')
+        .addFields(
+          {name:'🎲',value:'❌ خسرت',inline:true},
+          {name:'💰 الخسارة',value:fmt(amount),inline:true},
+          {name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-amount)),inline:true}
+        )
+      ]
+    });
   }
 }
 
 // استثمر
 if (cmd==='استثمر') {
-  const left=cooldownLeft(user,'استثمر'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'استثمر'); 
+  if(left>0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
+
   const amount=parseAmount(args[0],user.balance), riskKey=args[1]||'منخفض';
-  if(isNaN(amount)||amount<1000) return msg.reply('❌ الاستخدام: استثمر [مبلغ] [منخفض/متوسط/عالي]');
+  if(isNaN(amount)||amount<1000) return msg.reply('❌ الاستخدام: `استثمر [مبلغ] [منخفض/متوسط/عالي]`');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
+
   const risks={
     منخفض:{winChance:0.48,minG:0.05,maxG:0.15,maxL:0.12},
     متوسط:{winChance:0.48,minG:0.15,maxG:0.45,maxL:0.30},
     عالي: {winChance:0.47,minG:0.50,maxG:1.20,maxL:0.60},
   };
-  const cfg=risks[riskKey]||risks['منخفض'], win=Math.random()<cfg.winChance;
+
+  const cfg=risks[riskKey]||risks['منخفض'];
+  const win=Math.random()<cfg.winChance;
+
   db.prepare('UPDATE users SET last_invest=? WHERE id=?').run(Date.now(),msg.author.id);
+
   if(win){
     let gain=Math.floor(amount*(cfg.minG+Math.random()*(cfg.maxG-cfg.minG)));
     gain=slaveCut(msg.author.id,gain,'الاستثمار');
+
     db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle('📈 استثمار ناجح!').setColor('#00ff88').addFields({name:'💰 المستثمر',value:fmt(amount),inline:true},{name:'📈 الربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});
+
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle('📈 استثمار ناجح!')
+        .setColor('#00ff88')
+        .addFields(
+          {name:'💰 المستثمر',value:fmt(amount),inline:true},
+          {name:'📈 الربح',value:fmt(gain),inline:true},
+          {name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true}
+        )
+      ]
+    });
   } else {
     const loss=Math.floor(amount*cfg.maxL);
+
     db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(loss,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle('📉 خسارة!').setColor('#e74c3c').addFields({name:'💰 المستثمر',value:fmt(amount),inline:true},{name:'📉 الخسارة',value:fmt(loss),inline:true},{name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-loss)),inline:true})]});
+
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle('📉 خسارة!')
+        .setColor('#e74c3c')
+        .addFields(
+          {name:'💰 المستثمر',value:fmt(amount),inline:true},
+          {name:'📉 الخسارة',value:fmt(loss),inline:true},
+          {name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-loss)),inline:true}
+        )
+      ]
+    });
   }
 }
 
 // تداول
 if (cmd==='تداول') {
-  const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'تداول'); 
+  if(left>0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
+
   const amount=parseAmount(args[0],user.balance);
-  if(isNaN(amount)||amount<500) return msg.reply('❌ الاستخدام: تداول [مبلغ] (الحد الأدنى 500)');
+  if(isNaN(amount)||amount<500) return msg.reply('❌ الاستخدام: `تداول [مبلغ]` (الحد الأدنى 500)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
-  const roll=Math.random(); let rawChange, result;
+
+  const roll=Math.random(); 
+  let rawChange, result;
 
   // 25% موجة صعود | 23% ارتفاع بسيط | 27% تراجع | 25% انهيار
   if(roll>0.75){
@@ -919,14 +982,40 @@ if (cmd==='تداول') {
   }
 
   db.prepare('UPDATE users SET last_trade=? WHERE id=?').run(Date.now(),msg.author.id);
-if(rawChange>0){
+
+  if(rawChange>0){
     let gain=slaveCut(msg.author.id,rawChange,'التداول');
     db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle(📊 ${result}).setColor('#00ff88').addFields({name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'📈 ربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});
+
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle(`📊 ${result}`)
+        .setColor('#00ff88')
+        .addFields(
+          {name:'💰 المبلغ',value:fmt(amount),inline:true},
+          {name:'📈 ربح',value:fmt(gain),inline:true},
+          {name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true}
+        )
+      ]
+    });
   } else {
     const loss=Math.abs(rawChange);
+
     db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(loss,msg.author.id);
-    return msg.reply({embeds:[new EmbedBuilder().setTitle(📊 ${result}).setColor('#e74c3c').addFields({name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'📉 خسارة',value:fmt(loss),inline:true},{name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-loss)),inline:true})]});
+
+    return msg.reply({
+      embeds:[
+        new EmbedBuilder()
+        .setTitle(`📊 ${result}`)
+        .setColor('#e74c3c')
+        .addFields(
+          {name:'💰 المبلغ',value:fmt(amount),inline:true},
+          {name:'📉 خسارة',value:fmt(loss),inline:true},
+          {name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-loss)),inline:true}
+        )
+      ]
+    });
   }
 }
 
