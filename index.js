@@ -256,12 +256,12 @@ const REPUTATION_LEVELS = [
   { min: 100, max: 100, name: '💎 أسطورة',       blocked: false },
 ];
 
-const TRANSFER_COOLDOWN = 1 * 60 * 60 * 1000;
+const TRANSFER_COOLDOWN = 20 * 60 * 1000;
 const SLAVE_CUT         = 0.20;
 
 const COOLDOWNS = {
-  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 5*60*1000,
-  استثمر: 5*60*1000, تداول: 5*60*1000, سرقة: 15*60*1000,
+  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 3*60*1000,
+  استثمر: 3*60*1000, تداول: 3*60*1000, سرقة: 15*60*1000,
 };
 
 function fmt(n) {
@@ -435,7 +435,7 @@ client.on('messageCreate', async (msg) => {
       try { client.users.fetch(target.id).then(u=>u.send(`💸 **تحويل جديد!**\n**${msg.author.username}** حوّل لك **${fmt(received)}** 💰`).catch(()=>{})).catch(()=>{}); } catch(e){}
       return msg.reply({embeds:[new EmbedBuilder().setTitle('✅ تم التحويل').setColor('#00ff88')
         .addFields({name:'📤 المرسل',value:msg.author.username,inline:true},{name:'📥 المستلم',value:target.username,inline:true},{name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'💸 رسوم 2%',value:fmt(fee),inline:true},{name:'✅ وصل',value:fmt(received),inline:true})
-        .setFooter({text:'التحويل القادم بعد ساعة'})]});
+        .setFooter({text:'التحويل القادم بعد 20 دقيقه'})]});
     }
 
     // إيداع / سحب
@@ -475,7 +475,7 @@ client.on('messageCreate', async (msg) => {
         const boxType=args[1];
         const box=LOOT_BOXES[boxType];
         if(!box) return msg.reply(`❌ الأنواع المتاحة: ${Object.keys(LOOT_BOXES).map(k=>`\`${k}\``).join(' | ')}`);
-        const lootLeft=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+        const lootLeft=Math.max(0,3*60*60*1000-(Date.now()-(user.last_lootbox||0)));
         if(lootLeft>0) return msg.reply(`⏰ تقدر تشتري صندوق جديد بعد **${fmtTime(lootLeft)}**`);
         if(user.balance<box.price) return msg.reply(`❌ تحتاج **${fmt(box.price)}** لفتح صندوق ${boxType}`);
         db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(box.price,msg.author.id);
@@ -840,7 +840,7 @@ client.on('messageCreate', async (msg) => {
 
     // حماية
     if (cmd==='حماية') {
-      const opts={'6':{hours:6,price:5_000},'12':{hours:12,price:9_000},'24':{hours:24,price:15_000},'72':{hours:72,price:35_000}};
+      const opts={'6':{hours:6,price:7_000},'12':{hours:12,price:35_000},'24':{hours:24,price:150_000},'72':{hours:72,price:300_000}};
       const opt=opts[args[0]];
       if(!opt) return msg.reply('❌ الاستخدام: `حماية 6/12/24/72`\n6س=5K | 12س=9K | 24س=15K | 3أيام=35K');
       if(user.balance<opt.price) return msg.reply(`❌ تحتاج **${fmt(opt.price)}**`);
