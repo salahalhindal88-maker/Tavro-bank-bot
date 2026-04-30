@@ -22,10 +22,15 @@ db.exec(`
     last_transfer INTEGER DEFAULT 0, last_mine INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS government (id INTEGER PRIMARY KEY DEFAULT 1, treasury INTEGER DEFAULT 0);
-  CREATE TABLE IF NOT EXISTS user_mines (owner_id TEXT PRIMARY KEY, mine_id TEXT, last_mined INTEGER DEFAULT 0);
-  CREATE TABLE IF NOT EXISTS mine_inventory (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT,
-    resource_name TEXT, quantity INTEGER DEFAULT 0, unit_value INTEGER DEFAULT 0
+  CREATE TABLE IF NOT EXISTS user_lands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id TEXT, land_id TEXT, level INTEGER DEFAULT 1,
+    current_value INTEGER, last_collected INTEGER DEFAULT (unixepoch()*1000),
+    bought_at INTEGER DEFAULT (unixepoch()*1000)
+  );
+  CREATE TABLE IF NOT EXISTS materials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id TEXT, name TEXT, quantity INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS slaves (
     slave_id TEXT PRIMARY KEY, owner_id TEXT,
@@ -65,11 +70,10 @@ db.exec(`
 `);
 
 try { db.exec(`ALTER TABLE users ADD COLUMN last_transfer INTEGER DEFAULT 0`); } catch(e) {}
-try { db.exec(`ALTER TABLE users ADD COLUMN last_mine INTEGER DEFAULT 0`); } catch(e) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN reputation INTEGER DEFAULT 100`); } catch(e) {}
-try { db.exec(`ALTER TABLE users ADD COLUMN mine_sold_at INTEGER DEFAULT 0`); } catch(e) {}
 try { db.exec(`ALTER TABLE users ADD COLUMN last_lootbox INTEGER DEFAULT 0`); } catch(e) {}
-try { db.exec(`ALTER TABLE trips ADD COLUMN country TEXT DEFAULT 'غير محدد'`); } catch(e) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN last_loan INTEGER DEFAULT 0`); } catch(e) {}
+try { db.exec(`ALTER TABLE users ADD COLUMN last_loan INTEGER DEFAULT 0`); } catch(e) {}
 
 // ==============================
 // دول الرحلات الاستثمارية
@@ -97,12 +101,12 @@ const LOOT_BOXES = {
     emoji: '📦',
     color: '#95a5a6',
     prizes: [
-      { name: 'فلوس صغيرة',  type: 'money',      value: 2_000,   chance: 30 },
-      { name: 'فلوس متوسطة', type: 'money',      value: 8_000,   chance: 25 },
-      { name: 'فلوس جيدة',   type: 'money',      value: 15_000,  chance: 20 },
-      { name: 'حماية 6س',    type: 'protection', value: 6,       chance: 15 },
-      { name: 'فلوس كبيرة',  type: 'money',      value: 50_000,  chance: 8  },
-      { name: 'جائزة نادرة', type: 'money',      value: 200_000, chance: 2  },
+      { name: 'فلوس صغيرة',  type: 'money',      value: 1_000,   chance: 40 }, // أقل من السعر دائماً
+      { name: 'فلوس متوسطة', type: 'money',      value: 3_000,   chance: 25 },
+      { name: 'فلوس جيدة',   type: 'money',      value: 7_000,   chance: 18 },
+      { name: 'حماية 6س',    type: 'protection', value: 6,       chance: 10 },
+      { name: 'فلوس كبيرة',  type: 'money',      value: 30_000,  chance: 5  },
+      { name: 'جائزة نادرة', type: 'money',      value: 150_000, chance: 2  },
     ]
   },
   فضي: {
@@ -110,12 +114,12 @@ const LOOT_BOXES = {
     emoji: '🥈',
     color: '#bdc3c7',
     prizes: [
-      { name: 'فلوس جيدة',    type: 'money',      value: 20_000,   chance: 25 },
-      { name: 'فلوس ممتازة',  type: 'money',      value: 60_000,   chance: 25 },
-      { name: 'حماية 24س',   type: 'protection', value: 24,       chance: 20 },
-      { name: 'فلوس كبيرة',  type: 'money',      value: 150_000,  chance: 15 },
-      { name: 'جائزة نادرة', type: 'money',      value: 500_000,  chance: 10 },
-      { name: 'جائزة أسطورية',type:'money',       value: 2_000_000,chance: 5  },
+      { name: 'فلوس قليلة',   type: 'money',      value: 8_000,    chance: 35 },
+      { name: 'فلوس جيدة',   type: 'money',      value: 20_000,   chance: 25 },
+      { name: 'حماية 24س',   type: 'protection', value: 24,       chance: 18 },
+      { name: 'فلوس كبيرة',  type: 'money',      value: 80_000,   chance: 12 },
+      { name: 'جائزة نادرة', type: 'money',      value: 300_000,  chance: 7  },
+      { name: 'جائزة أسطورية',type:'money',       value: 1_500_000,chance: 3  },
     ]
   },
   ذهبي: {
@@ -123,12 +127,12 @@ const LOOT_BOXES = {
     emoji: '🥇',
     color: '#f1c40f',
     prizes: [
-      { name: 'فلوس ممتازة',   type: 'money',      value: 80_000,    chance: 20 },
-      { name: 'فلوس كبيرة',   type: 'money',      value: 300_000,   chance: 20 },
+      { name: 'فلوس متوسطة',  type: 'money',      value: 30_000,    chance: 30 },
+      { name: 'فلوس كبيرة',   type: 'money',      value: 100_000,   chance: 25 },
       { name: 'حماية 72س',    type: 'protection', value: 72,        chance: 20 },
-      { name: 'جائزة نادرة',  type: 'money',      value: 1_000_000, chance: 20 },
-      { name: 'جائزة أسطورية',type: 'money',      value: 5_000_000, chance: 15 },
-      { name: 'جائزة إمبراطور',type:'money',       value: 20_000_000,chance: 5  },
+      { name: 'جائزة نادرة',  type: 'money',      value: 600_000,   chance: 15 },
+      { name: 'جائزة أسطورية',type: 'money',      value: 3_000_000, chance: 7  },
+      { name: 'جائزة إمبراطور',type:'money',       value: 15_000_000,chance: 3  },
     ]
   },
   أسطوري: {
@@ -136,15 +140,98 @@ const LOOT_BOXES = {
     emoji: '💎',
     color: '#9b59b6',
     prizes: [
-      { name: 'فلوس كبيرة',    type: 'money',      value: 500_000,   chance: 20 },
-      { name: 'جائزة نادرة',   type: 'money',      value: 2_000_000, chance: 20 },
-      { name: 'جائزة أسطورية', type: 'money',      value: 10_000_000,chance: 20 },
-      { name: 'جائزة إمبراطور',type: 'money',      value: 50_000_000,chance: 20 },
-      { name: 'حماية 72س',     type: 'protection', value: 72,        chance: 10 },
-      { name: 'الجائزة الكبرى',type: 'money',      value: 200_000_000,chance: 10},
+      { name: 'فلوس جيدة',     type: 'money',      value: 200_000,   chance: 30 },
+      { name: 'جائزة نادرة',   type: 'money',      value: 1_000_000, chance: 25 },
+      { name: 'جائزة أسطورية', type: 'money',      value: 6_000_000, chance: 20 },
+      { name: 'جائزة إمبراطور',type: 'money',      value: 30_000_000,chance: 13 },
+      { name: 'حماية 72س',     type: 'protection', value: 72,        chance: 7  },
+      { name: 'الجائزة الكبرى',type: 'money',      value: 150_000_000,chance: 5 },
     ]
   },
 };
+
+
+// ==============================
+// الأراضي
+// ==============================
+const LANDS_LIST = [
+  { id: 'l1',  name: '🌱 قطعة أرض صغيرة',     price: 100_000 },
+  { id: 'l2',  name: '🌿 أرض زراعية',          price: 200_000 },
+  { id: 'l3',  name: '🏞️ أرض ريفية',            price: 350_000 },
+  { id: 'l4',  name: '🌄 أرض على التل',         price: 500_000 },
+  { id: 'l5',  name: '🏙️ أرض في الضواحي',       price: 700_000 },
+  { id: 'l6',  name: '🌆 أرض تجارية',           price: 900_000 },
+  { id: 'l7',  name: '🏗️ أرض صناعية',           price: 1_200_000 },
+  { id: 'l8',  name: '🏢 أرض في قلب المدينة',   price: 1_500_000 },
+  { id: 'l9',  name: '🌊 أرض ساحلية',           price: 1_750_000 },
+  { id: 'l10', name: '👑 أرض ملكية',            price: 2_000_000 },
+];
+
+// المواد وأسعارها للوحدة الواحدة
+const MATERIALS_LIST = {
+  خشب:   { price: 5,   emoji: '🪵' },
+  حديد:  { price: 5,   emoji: '🔩' },
+  طوب:   { price: 25,  emoji: '🧱' },
+  حجر:   { price: 31,  emoji: '🪨' },
+  ذهب:   { price: 176, emoji: '🟡' },
+  فولاذ: { price: 407, emoji: '⚙️' },
+};
+
+// متطلبات التطوير لكل مستوى (1→2، 2→3، ... 9→10)
+// كل مستوى أصعب من السابق بشكل كبير
+const UPGRADE_REQUIREMENTS = [
+  // مستوى 1 → 2
+  { خشب: 200, حديد: 150, طوب: 100, حجر: 80,  ذهب: 0,   فولاذ: 0   },
+  // مستوى 2 → 3
+  { خشب: 500, حديد: 400, طوب: 300, حجر: 250, ذهب: 50,  فولاذ: 0   },
+  // مستوى 3 → 4
+  { خشب: 800, حديد: 700, طوب: 600, حجر: 500, ذهب: 200, فولاذ: 100 },
+  // مستوى 4 → 5
+  { خشب: 1500,حديد: 1200,طوب: 1000,حجر: 900, ذهب: 500, فولاذ: 300 },
+  // مستوى 5 → 6
+  { خشب: 2500,حديد: 2000,طوب: 1800,حجر: 1500,ذهب: 1000,فولاذ: 700 },
+  // مستوى 6 → 7
+  { خشب: 4000,حديد: 3500,طوب: 3000,حجر: 2500,ذهب: 2000,فولاذ: 1500},
+  // مستوى 7 → 8
+  { خشب: 6000,حديد: 5500,طوب: 5000,حجر: 4500,ذهب: 3500,فولاذ: 3000},
+  // مستوى 8 → 9
+  { خشب: 9000,حديد: 8000,طوب: 7500,حجر: 7000,ذهب: 6000,فولاذ: 5000},
+  // مستوى 9 → 10
+  { خشب:15000,حديد:13000,طوب:12000,حجر:10000,ذهب:9000, فولاذ:8000 },
+];
+
+// قيمة الأرض بعد كل مستوى تطوير = السعر الأصلي × مضاعف المستوى
+const LEVEL_MULTIPLIERS = [1, 1.5, 2.3, 3.4, 5.0, 7.2, 10.5, 15.0, 22.0, 32.0];
+// دخل الأرض بالدقيقة = 1.5% من قيمتها الحالية
+const LAND_INCOME_RATE = 0.015;
+
+function getLandCurrentValue(land) {
+  const base = LANDS_LIST.find(l=>l.id===land.land_id)?.price || 0;
+  return Math.floor(base * (LEVEL_MULTIPLIERS[land.level-1] || 1));
+}
+
+function getMaterial(userId, name) {
+  return db.prepare('SELECT * FROM materials WHERE owner_id=? AND name=?').get(userId, name);
+}
+
+function addMaterial(userId, name, qty) {
+  const existing = getMaterial(userId, name);
+  if (existing) db.prepare('UPDATE materials SET quantity=quantity+? WHERE owner_id=? AND name=?').run(qty, userId, name);
+  else db.prepare('INSERT INTO materials (owner_id,name,quantity) VALUES (?,?,?)').run(userId, name, qty);
+}
+
+function buildLandsEmbed(page) {
+  const LANDS_PER_PAGE = 5;
+  const start = page * LANDS_PER_PAGE;
+  const slice = LANDS_LIST.slice(start, start + LANDS_PER_PAGE);
+  const totalPages = Math.ceil(LANDS_LIST.length / LANDS_PER_PAGE);
+  return {
+    embed: new EmbedBuilder().setTitle('🏞️ سوق الأراضي').setColor('#27ae60')
+      .setDescription(slice.map(l=>`**${l.name}** \`[${l.id}]\`\n💰 ${fmt(l.price)} | 📈 دخل أولي: ${fmt(Math.floor(l.price*LAND_INCOME_RATE))}/دقيقة`).join('\n\n'))
+      .setFooter({text:`صفحة ${page+1} من ${totalPages} | شراء أرض [id]`}),
+    totalPages
+  };
+}
 
 const LEVELS = [
   { level: 1, min: 0,           name: '👶 مبتدئ',     salary: 1_000 },
@@ -169,29 +256,12 @@ const REPUTATION_LEVELS = [
   { min: 100, max: 100, name: '💎 أسطورة',       blocked: false },
 ];
 
-const MINES_LIST = [
-  { id: 'm1',  name: '⛏️ منجم الحجارة',         price: 500_000,      maxStorage: 50, resources: [{ name: 'حجر',        value: 10_000,        chance: 70, emoji: '🪨' }, { name: 'رخام',        value: 30_000,        chance: 30, emoji: '⬜' }] },
-  { id: 'm2',  name: '🪨 منجم الفحم',            price: 1_500_000,    maxStorage: 45, resources: [{ name: 'فحم',        value: 25_000,        chance: 65, emoji: '⬛' }, { name: 'أنثراسيت',   value: 70_000,        chance: 35, emoji: '🖤' }] },
-  { id: 'm3',  name: '🔩 منجم الحديد',           price: 3_000_000,    maxStorage: 40, resources: [{ name: 'حديد',       value: 60_000,        chance: 60, emoji: '🔩' }, { name: 'صلب',         value: 150_000,       chance: 40, emoji: '⚙️' }] },
-  { id: 'm4',  name: '🪙 منجم النحاس',           price: 6_000_000,    maxStorage: 35, resources: [{ name: 'نحاس',       value: 150_000,       chance: 60, emoji: '🟤' }, { name: 'برونز',       value: 350_000,       chance: 40, emoji: '🏺' }] },
-  { id: 'm5',  name: '⚪ منجم الفضة',            price: 10_000_000,   maxStorage: 30, resources: [{ name: 'فضة',        value: 400_000,       chance: 55, emoji: '⚪' }, { name: 'بلاتين',      value: 900_000,       chance: 45, emoji: '🥈' }] },
-  { id: 'm6',  name: '🟡 منجم الذهب',            price: 16_000_000,   maxStorage: 25, resources: [{ name: 'ذهب',        value: 1_000_000,     chance: 55, emoji: '🟡' }, { name: 'إلكتروم',     value: 2_500_000,     chance: 45, emoji: '🥇' }] },
-  { id: 'm7',  name: '💎 منجم الأحجار الكريمة',  price: 22_000_000,   maxStorage: 20, resources: [{ name: 'زمرد',       value: 4_000_000,     chance: 40, emoji: '💚' }, { name: 'ياقوت',       value: 7_000_000,     chance: 35, emoji: '❤️' }, { name: 'ألماس',      value: 12_000_000,    chance: 25, emoji: '💎' }] },
-  { id: 'm8',  name: '🔵 منجم الأحجار النادرة',  price: 30_000_000,   maxStorage: 15, resources: [{ name: 'صفير',       value: 18_000_000,    chance: 40, emoji: '💙' }, { name: 'فيروز',       value: 30_000_000,    chance: 35, emoji: '🟦' }, { name: 'عقيق',       value: 55_000_000,    chance: 25, emoji: '💜' }] },
-  { id: 'm9',  name: '☢️ منجم المعادن النادرة',   price: 80_000_000,   maxStorage: 12, resources: [{ name: 'تيتانيوم',   value: 80_000_000,    chance: 45, emoji: '⚫' }, { name: 'إيريديوم',    value: 180_000_000,   chance: 35, emoji: '🔘' }, { name: 'أوسميوم',    value: 350_000_000,   chance: 20, emoji: '☢️' }] },
-  { id: 'm10', name: '🌌 منجم الكريستال',         price: 200_000_000,  maxStorage: 10, resources: [{ name: 'كريستال',    value: 200_000_000,   chance: 50, emoji: '🔮' }, { name: 'كوارتز',      value: 500_000_000,   chance: 30, emoji: '🌌' }, { name: 'نيليوم',     value: 1_000_000_000, chance: 20, emoji: '✨' }] },
-  { id: 'm11', name: '🌠 منجم النجوم',            price: 500_000_000,  maxStorage: 8,  resources: [{ name: 'ستارديست',   value: 600_000_000,   chance: 45, emoji: '🌠' }, { name: 'نيوترونيوم',  value: 1_500_000_000, chance: 35, emoji: '⭐' }, { name: 'كوزميوم',    value: 3_000_000_000, chance: 20, emoji: '🌟' }] },
-  { id: 'm12', name: '👑 منجم الإمبراطور',        price: 1_000_000_000,maxStorage: 5,  resources: [{ name: 'أوريكالكوم', value: 2_000_000_000, chance: 40, emoji: '👑' }, { name: 'أدامانتيوم',  value: 5_000_000_000, chance: 35, emoji: '💠' }, { name: 'إكسيريوم',   value: 10_000_000_000,chance: 25, emoji: '🔱' }] },
-];
-
-const MINE_COOLDOWN     = 3 * 60 * 60 * 1000;
-const TRANSFER_COOLDOWN = 1 * 60 * 60 * 1000;
+const TRANSFER_COOLDOWN = 20 * 60 * 1000;
 const SLAVE_CUT         = 0.20;
-const MINES_PER_PAGE    = 4;
 
 const COOLDOWNS = {
-  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 5*60*1000,
-  استثمر: 5*60*1000, تداول: 5*60*1000, سرقة: 15*60*1000,
+  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 3*60*1000,
+  استثمر: 3*60*1000, تداول: 5*60*1000, سرقة: 15*60*1000,
 };
 
 function fmt(n) {
@@ -268,13 +338,6 @@ function buildPageButtons(page, totalPages, prefix) {
   );
 }
 
-function buildMinesEmbed(page) {
-  const start=page*MINES_PER_PAGE, slice=MINES_LIST.slice(start,start+MINES_PER_PAGE), totalPages=Math.ceil(MINES_LIST.length/MINES_PER_PAGE);
-  return {embed:new EmbedBuilder().setTitle('⛏️ سوق المناجم').setColor('#8B4513')
-    .setDescription(slice.map(m=>`**${m.name}** \`[${m.id}]\`\n💰 ${fmt(m.price)} | 📦 ${m.maxStorage} وحدة\n${m.resources.map(r=>`  ${r.emoji} ${r.name} (${r.chance}%) — ${fmt(r.value)}`).join('\n')}`).join('\n\n'))
-    .setFooter({text:`صفحة ${page+1} من ${totalPages} | شراء منجم [id]`}), totalPages};
-}
-
 async function sendLog(guildId, content) {
   if(!CONFIG.LOG_CHANNEL_ID) return;
   try { const ch=client.guilds.cache.get(guildId)?.channels.cache.get(CONFIG.LOG_CHANNEL_ID); if(ch) await ch.send(content); } catch(e){}
@@ -294,7 +357,6 @@ client.on('messageCreate', async (msg) => {
     if (cmd==='ملفي'||cmd==='بروفايل') {
       const target=msg.mentions.users.first(), u=target?getUser(target.id,target.username):user;
       const level=getLevel(u.balance+u.bank), repLvl=getReputation(u.reputation), prot=u.protection_until>Date.now();
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(u.id);
       const slaveRec=db.prepare('SELECT * FROM slaves WHERE slave_id=?').get(u.id);
       const mySlaves=db.prepare('SELECT * FROM slaves WHERE owner_id=?').all(u.id);
       const ownerName=slaveRec?db.prepare('SELECT username FROM users WHERE id=?').get(slaveRec.owner_id)?.username:'';
@@ -306,7 +368,7 @@ client.on('messageCreate', async (msg) => {
         .addFields(
           {name:'💰 المحفظة',value:fmt(u.balance),inline:true},{name:'🏦 البنك',value:fmt(u.bank),inline:true},{name:'📊 الإجمالي',value:fmt(u.balance+u.bank),inline:true},
           {name:'🏆 المستوى',value:level.name,inline:true},{name:'⭐ السمعة',value:`${u.reputation}/100 ${repLvl.name}`,inline:true},{name:'🛡 الحماية',value:prot?`⏰ ${fmtTime(u.protection_until-Date.now())}`:'❌',inline:true},
-          {name:'⛏️ المنجم',value:myMine?MINES_LIST.find(m=>m.id===myMine.mine_id)?.name:'لا يوجد',inline:true},{name:'💳 القرض',value:u.loan>0?fmt(u.loan):'لا يوجد',inline:true},
+          {name:'💳 القرض',value:u.loan>0?fmt(u.loan):'لا يوجد',inline:true},
           {name:'⛓️ وضع العبودية',value:slaveRec?`مملوك لـ **${ownerName}** | للتحرير: ${fmt(slaveRec.buy_price*2)}`:'حر 🕊️',inline:false},
           {name:'👥 عبيدي',value:mySlaves.length>0?`${mySlaves.length} عبيد`:'لا يوجد',inline:true},
           {name:'⚖️ السجل الجنائي',value:lostCases.c>0?`🔴 حرامي موثق (${lostCases.c} قضية)`:'✅ نظيف',inline:true},
@@ -328,7 +390,7 @@ client.on('messageCreate', async (msg) => {
     // راتب
     if (cmd==='راتب') {
       const left=cooldownLeft(user,'راتب'); if(left>0) return msg.reply(`⏰ راتبك القادم بعد **${fmtTime(left)}**`);
-      const level=getLevel(user.balance+user.bank), tax=Math.floor(level.salary*0.01);
+      const level=getLevel(user.balance+user.bank), tax=Math.floor(level.salary*0.03); // ضريبة 3%
       let net=level.salary-tax;
       db.prepare('UPDATE users SET last_salary=?, reputation=MIN(100,reputation+1) WHERE id=?').run(Date.now(),msg.author.id);
       db.prepare('UPDATE government SET treasury=treasury+? WHERE id=1').run(tax);
@@ -344,7 +406,7 @@ client.on('messageCreate', async (msg) => {
     if (cmd==='عمل') {
       const left=cooldownLeft(user,'عمل'); if(left>0) return msg.reply(`⏰ تعب! ارجع بعد **${fmtTime(left)}**`);
       const level=getLevel(user.balance+user.bank);
-      let earned=Math.floor(level.salary*0.3+Math.random()*level.salary*0.4);
+      let earned=Math.floor(level.salary*0.20+Math.random()*level.salary*0.25); // أقل ربحاً
       const jobs=['🔨 عمل في البناء','💻 برمج موقع','🚗 وصّل طلبيات','📦 رتّب مستودع','🍳 طبخ في مطعم','🌿 شغل في المزرعة','🔧 صيانة سيارات'];
       db.prepare('UPDATE users SET last_work=?, reputation=MIN(100,reputation+1) WHERE id=?').run(Date.now(),msg.author.id);
       earned=slaveCut(msg.author.id, earned, 'العمل');
@@ -373,7 +435,7 @@ client.on('messageCreate', async (msg) => {
       try { client.users.fetch(target.id).then(u=>u.send(`💸 **تحويل جديد!**\n**${msg.author.username}** حوّل لك **${fmt(received)}** 💰`).catch(()=>{})).catch(()=>{}); } catch(e){}
       return msg.reply({embeds:[new EmbedBuilder().setTitle('✅ تم التحويل').setColor('#00ff88')
         .addFields({name:'📤 المرسل',value:msg.author.username,inline:true},{name:'📥 المستلم',value:target.username,inline:true},{name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'💸 رسوم 2%',value:fmt(fee),inline:true},{name:'✅ وصل',value:fmt(received),inline:true})
-        .setFooter({text:'التحويل القادم بعد ساعة'})]});
+        .setFooter({text:'التحويل القادم بعد 20 دقيقه'})]});
     }
 
     // إيداع / سحب
@@ -391,9 +453,6 @@ client.on('messageCreate', async (msg) => {
       db.prepare('UPDATE users SET bank=bank-?, balance=balance+? WHERE id=?').run(amount,amount,msg.author.id);
       return msg.reply({embeds:[new EmbedBuilder().setTitle('💰 تم السحب').setColor('#00ff88').setDescription(`سحبت **${fmt(amount)}** من البنك`)]});
     }
-
-    // مناجم
-    if (cmd==='مناجم') { const {embed,totalPages}=buildMinesEmbed(0); return msg.reply({embeds:[embed],components:[buildPageButtons(0,totalPages,'mines')]}); }
 
     // شراء
     if (cmd==='شراء') {
@@ -416,7 +475,7 @@ client.on('messageCreate', async (msg) => {
         const boxType=args[1];
         const box=LOOT_BOXES[boxType];
         if(!box) return msg.reply(`❌ الأنواع المتاحة: ${Object.keys(LOOT_BOXES).map(k=>`\`${k}\``).join(' | ')}`);
-        const lootLeft=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+        const lootLeft=Math.max(0,3*60*60*1000-(Date.now()-(user.last_lootbox||0)));
         if(lootLeft>0) return msg.reply(`⏰ تقدر تشتري صندوق جديد بعد **${fmtTime(lootLeft)}**`);
         if(user.balance<box.price) return msg.reply(`❌ تحتاج **${fmt(box.price)}** لفتح صندوق ${boxType}`);
         db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(box.price,msg.author.id);
@@ -438,20 +497,6 @@ client.on('messageCreate', async (msg) => {
             {name:'💰 القيمة',value:prize.type==='money'?fmt(prize.value):`حماية ${prize.value} ساعة`,inline:true},
             {name:profit>=0?'📈 ربح':'📉 خسارة',value:fmt(Math.abs(profit)),inline:true},
           ).setFooter({text:`دفعت ${fmt(box.price)} | ${profit>=0?'مبروك!':'حظاً أوفر المرة القادمة!'}`})]});
-      }
-      if (type==='منجم') {
-        if(!itemId) return msg.reply('❌ الاستخدام: `شراء منجم [id]`');
-        const mine=MINES_LIST.find(m=>m.id===itemId);
-        if(!mine) return msg.reply('❌ ID غير صحيح! اكتب `مناجم`');
-        if(db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id)) return msg.reply('❌ عندك منجم! بيع منجمك أولاً');
-        const mineCooldown=Math.max(0,2*60*60*1000-(Date.now()-(user.mine_sold_at||0)));
-        if(mineCooldown>0) return msg.reply(`⏰ انتظر **${fmtTime(mineCooldown)}** قبل شراء منجم جديد!`);
-        if(user.balance<mine.price) return msg.reply(`❌ تحتاج **${fmt(mine.price)}**`);
-        db.prepare('UPDATE users SET balance=balance-?, reputation=MIN(100,reputation+2) WHERE id=?').run(mine.price,msg.author.id);
-        db.prepare('INSERT INTO user_mines (owner_id,mine_id,last_mined) VALUES (?,?,0)').run(msg.author.id,mine.id);
-        return msg.reply({embeds:[new EmbedBuilder().setTitle(`✅ اشتريت ${mine.name}!`).setColor('#00ff88')
-          .addFields({name:'💰 السعر',value:fmt(mine.price),inline:true},{name:'📦 التخزين',value:`${mine.maxStorage} وحدة`,inline:true},{name:'⏰ التعدين',value:'كل 3 ساعات',inline:true},{name:'💎 الموارد',value:mine.resources.map(r=>`${r.emoji} ${r.name} (${r.chance}%) — ${fmt(r.value)}`).join('\n')})
-          .setFooter({text:'⭐ +2 سمعة | اكتب: تعدين للبدء!'})]});
       }
       return msg.reply('❌ الاستخدام: `شراء منجم [id]` | `شراء شخص @شخص مبلغ` | `شراء صندوق [عادي/فضي/ذهبي/أسطوري]`');
     }
@@ -488,84 +533,287 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({embeds:[new EmbedBuilder().setTitle(`⛓️ عبيدي — ${mySlaves.length}`).setColor('#ff6b35').setDescription(desc).setFooter({text:'تأخذ 20% من كل أرباحهم'})]});
     }
 
-    // بيع
-    if (cmd==='بيع') {
-      if (args[0]==='مورد' && args[1]==='كل' && args.length===2) {
-        const inv=db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND quantity>0').all(msg.author.id);
-        if(inv.length===0) return msg.reply('📦 مستودعك فارغ!');
-        let total=0;
-        for(const i of inv){total+=i.quantity*i.unit_value;db.prepare('UPDATE mine_inventory SET quantity=0 WHERE owner_id=? AND resource_name=?').run(msg.author.id,i.resource_name);}
-        db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(total,msg.author.id);
-        return msg.reply({embeds:[new EmbedBuilder().setTitle('💰 تم بيع كل الموارد!').setColor('#00ff88').addFields({name:'📦 الأنواع',value:`${inv.length}`,inline:true},{name:'💰 الإجمالي',value:fmt(total),inline:true})]});
+
+    // ============================
+    // نظام الأراضي
+    // ============================
+
+    // أرض — يعرض أزرار الأراضي (صفحتين)
+    if (cmd==='أرض'||cmd==='أراضي'||cmd==='اراضي') {
+      const freshUser=getUser(msg.author.id,msg.author.username);
+      // صفحة 1: l1-l5
+      const rows=[];
+      for(let page=0;page<2;page++){
+        const row=new ActionRowBuilder();
+        const start=page*5;
+        LANDS_LIST.slice(start,start+5).forEach(l=>{
+          const canAfford=freshUser.balance>=l.price;
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`buy_land_${l.id}_${msg.author.id}`)
+              .setLabel(`${l.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} ${fmt(l.price)}`)
+              .setStyle(canAfford?ButtonStyle.Success:ButtonStyle.Secondary)
+              .setDisabled(!canAfford)
+          );
+        });
+        rows.push(row);
       }
-      if (args[0]==='منجم') {
-        const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
-        if(!myMine) return msg.reply('❌ ليس لديك منجم!');
-        const mine=MINES_LIST.find(m=>m.id===myMine.mine_id), sellPrice=Math.floor(mine.price*0.70);
-        db.prepare('DELETE FROM user_mines WHERE owner_id=?').run(msg.author.id);
-        db.prepare('DELETE FROM mine_inventory WHERE owner_id=?').run(msg.author.id);
-        db.prepare('UPDATE users SET balance=balance+?, mine_sold_at=? WHERE id=?').run(sellPrice,Date.now(),msg.author.id);
-        return msg.reply({embeds:[new EmbedBuilder().setTitle(`💸 تم بيع ${mine.name}`).setColor('#ffd700')
-          .addFields({name:'💰 سعر الشراء',value:fmt(mine.price),inline:true},{name:'✅ استلمت 70%',value:fmt(sellPrice),inline:true})
-          .setFooter({text:'⚠️ تم حذف الموارد! انتظر ساعتين قبل شراء منجم جديد'})]});
+      // أزرار الترقية إذا عنده أراضي
+      const myLandsNow=db.prepare('SELECT * FROM user_lands WHERE owner_id=? AND level < 10').all(msg.author.id);
+      if(myLandsNow.length>0){
+        const upRow=new ActionRowBuilder();
+        myLandsNow.slice(0,5).forEach(land=>{
+          const lDef=LANDS_LIST.find(l=>l.id===land.land_id);
+          const req=UPGRADE_REQUIREMENTS[land.level-1];
+          let canUpgrade=true;
+          for(const [mName,needed] of Object.entries(req)){
+            if(needed===0) continue;
+            const have=db.prepare('SELECT quantity FROM materials WHERE owner_id=? AND name=?').get(msg.author.id,mName);
+            if(!have||have.quantity<needed){canUpgrade=false;break;}
+          }
+          upRow.addComponents(new ButtonBuilder()
+            .setCustomId(`upgrade_land_${land.id}_${msg.author.id}`)
+            .setLabel(`⬆️ ${lDef?.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} Lv${land.level}→${land.level+1}`)
+            .setStyle(canUpgrade?ButtonStyle.Primary:ButtonStyle.Secondary)
+            .setDisabled(!canUpgrade)
+          );
+        });
+        rows.push(upRow);
       }
-      if (args[0]==='مورد') {
-        if(args.length<3) return msg.reply('❌ الاستخدام: `بيع مورد [اسم] [كمية/كل]`');
-        const qtyArg=args[args.length-1], resourceName=args.slice(1,args.length-1).join(' ');
-        const stored=db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND resource_name=?').get(msg.author.id,resourceName);
-        if(!stored||stored.quantity<=0) return msg.reply(`❌ ما عندك **${resourceName}**!\nاكتب \`مستودعي\``);
-        const qty=qtyArg==='كل'?stored.quantity:parseInt(qtyArg);
-        if(isNaN(qty)||qty<=0||qty>stored.quantity) return msg.reply(`❌ كمية غير صحيحة! عندك ${stored.quantity}`);
-        const earned=qty*stored.unit_value;
-        db.prepare('UPDATE mine_inventory SET quantity=quantity-? WHERE owner_id=? AND resource_name=?').run(qty,msg.author.id,resourceName);
-        db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(earned,msg.author.id);
-        return msg.reply({embeds:[new EmbedBuilder().setTitle('💰 تم بيع المورد!').setColor('#00ff88').addFields({name:'📦 المورد',value:`${qty}x ${resourceName}`,inline:true},{name:'💰 الربح',value:fmt(earned),inline:true})]});
-      }
-      return msg.reply('❌ الاستخدام: `بيع منجم` | `بيع مورد كل` | `بيع مورد [اسم] [كمية]`');
+      const embed=new EmbedBuilder().setTitle('🏞️ سوق الأراضي').setColor('#27ae60')
+        .setDescription(LANDS_LIST.map(l=>`${l.name} \`[${l.id}]\` — 💰 ${fmt(l.price)} | 📈 ${fmt(Math.floor(l.price*LAND_INCOME_RATE))}/دقيقة`).join('\n'))
+        .setFooter({text:`رصيدك: ${fmt(freshUser.balance)} | اضغط الزر للشراء الفوري`});
+      return msg.reply({embeds:[embed],components:rows});
     }
 
-    // تعدين
-    if (cmd==='تعدين') {
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
-      if(!myMine) return msg.reply('❌ ليس لديك منجم! اكتب `مناجم`');
-      const now=Date.now(), elapsed=now-(myMine.last_mined||0), left=Math.max(0,MINE_COOLDOWN-elapsed);
-      if(left>0) return msg.reply(`⏰ ارجع بعد **${fmtTime(left)}**`);
-      const mine=MINES_LIST.find(m=>m.id===myMine.mine_id);
-      const units=Math.min(Math.max(1,Math.floor(elapsed/MINE_COOLDOWN)),mine.maxStorage);
-      const roll=Math.random()*100; let cum=0, res=mine.resources[0];
-      for(const r of mine.resources){cum+=r.chance;if(roll<=cum){res=r;break;}}
-      const stored=db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND resource_name=?').get(msg.author.id,res.name);
-      const curQty=stored?stored.quantity:0, actual=Math.min(units,mine.maxStorage-curQty);
-      if(actual<=0) return msg.reply(`⚠️ مستودع **${res.name}** ممتلئ!`);
-      if(stored){db.prepare('UPDATE mine_inventory SET quantity=quantity+? WHERE owner_id=? AND resource_name=?').run(actual,msg.author.id,res.name);}
-      else{db.prepare('INSERT INTO mine_inventory (owner_id,resource_name,quantity,unit_value) VALUES (?,?,?,?)').run(msg.author.id,res.name,actual,res.value);}
-      db.prepare('UPDATE user_mines SET last_mined=? WHERE owner_id=?').run(now,msg.author.id);
-      return msg.reply({embeds:[new EmbedBuilder().setTitle('⛏️ نتيجة التعدين!').setColor('#8B4513')
-        .addFields({name:'🏔 المنجم',value:mine.name,inline:true},{name:`${res.emoji} المورد`,value:res.name,inline:true},{name:'📦 الكمية',value:`${actual} وحدة`,inline:true},{name:'💰 القيمة',value:fmt(actual*res.value),inline:true},{name:'📊 المستودع',value:`${curQty+actual}/${mine.maxStorage}`,inline:true})
-        .setFooter({text:'مستودعي | بيع مورد [اسم] [كمية/كل] | بيع مورد كل'})]});
+    // شراء أرض (من الأمر القديم إذا أحد كتبه)
+    if (cmd==='شراء' && args[0]==='أرض') {
+      const landId=args[1]?.toLowerCase();
+      if(!landId) return msg.reply('❌ اكتب `أرض` لعرض الأزرار');
+      const landDef=LANDS_LIST.find(l=>l.id===landId);
+      if(!landDef) return msg.reply('❌ ID غير صحيح! اكتب `أرض`');
+      if(user.balance<landDef.price) return msg.reply(`❌ تحتاج **${fmt(landDef.price)}**`);
+      db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(landDef.price,msg.author.id);
+      db.prepare('INSERT INTO user_lands (owner_id,land_id,level,current_value,last_collected) VALUES (?,?,1,?,?)').run(msg.author.id,landDef.id,landDef.price,Date.now());
+      const income=Math.floor(landDef.price*LAND_INCOME_RATE);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`✅ اشتريت ${landDef.name}!`).setColor('#27ae60')
+        .addFields({name:'💰 السعر',value:fmt(landDef.price),inline:true},{name:'🏗️ المستوى',value:'1/10',inline:true},{name:'📈 دخل/دقيقة',value:fmt(income),inline:true})
+        .setFooter({text:'تحصيل_أرضي لجمع الأرباح | تطوير_أرض [رقم] للتطوير'})]});
     }
 
-    // مستودعي
-    if (cmd==='مستودعي') {
-      const inv=db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND quantity>0').all(msg.author.id);
-      if(inv.length===0) return msg.reply('📦 مستودعك فارغ!');
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
-      const mine=myMine?MINES_LIST.find(m=>m.id===myMine.mine_id):null;
-      const totVal=inv.reduce((s,i)=>s+(i.quantity*i.unit_value),0);
-      return msg.reply({embeds:[new EmbedBuilder().setTitle(`📦 مستودع ${msg.author.username}`).setColor('#8B4513')
-        .setDescription(inv.map(i=>`${mine?.resources.find(r=>r.name===i.resource_name)?.emoji||'📦'} **${i.resource_name}**: ${i.quantity} — ${fmt(i.quantity*i.unit_value)}`).join('\n'))
-        .addFields({name:'💰 إجمالي القيمة',value:fmt(totVal)}).setFooter({text:'بيع مورد كل — لبيع كل شيء دفعة واحدة'})]});
+    // أراضيي (عرض أراضي اللاعب)
+    if (cmd==='أراضيي'||cmd==='اراضيي') {
+      const myLands=db.prepare('SELECT * FROM user_lands WHERE owner_id=?').all(msg.author.id);
+      if(myLands.length===0) return msg.reply('🏞️ ليس لديك أراضي! اكتب `أراضي` لعرض السوق');
+      const now=Date.now();
+      let desc='';
+      let totalIncome=0;
+      for(const land of myLands){
+        const landDef=LANDS_LIST.find(l=>l.id===land.land_id);
+        const curVal=getLandCurrentValue(land);
+        const incomePerMin=Math.floor(curVal*LAND_INCOME_RATE);
+        totalIncome+=incomePerMin;
+        const elapsedMin=(now-land.last_collected)/60000;
+        const pending=Math.floor(incomePerMin*elapsedMin);
+        desc+=`**#${land.id} ${landDef?.name||land.land_id}** — مستوى **${land.level}/10**
+`;
+        desc+=`💰 قيمة: ${fmt(curVal)} | 📈 ${fmt(incomePerMin)}/دقيقة | ⏳ متراكم: ${fmt(pending)}
+
+`;
+      }
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`🏞️ أراضي ${msg.author.username}`).setColor('#27ae60')
+        .setDescription(desc)
+        .addFields({name:'📈 إجمالي الدخل/دقيقة',value:fmt(totalIncome),inline:true},{name:'🏗️ عدد الأراضي',value:`${myLands.length}`,inline:true})
+        .setFooter({text:'تحصيل_أرضي — لجمع الأرباح | تطوير_أرض [رقم] — للتطوير'})]});
     }
 
-    // مناجمي
-    if (cmd==='مناجمي') {
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
-      if(!myMine) return msg.reply('❌ ليس لديك منجم!');
-      const mine=MINES_LIST.find(m=>m.id===myMine.mine_id), left=Math.max(0,MINE_COOLDOWN-(Date.now()-(myMine.last_mined||0)));
-      const inv=db.prepare('SELECT * FROM mine_inventory WHERE owner_id=? AND quantity>0').all(msg.author.id);
-      return msg.reply({embeds:[new EmbedBuilder().setTitle(`⛏️ منجمك — ${mine.name}`).setColor('#8B4513')
-        .addFields({name:'💰 السعر',value:fmt(mine.price),inline:true},{name:'📦 التخزين',value:`${mine.maxStorage} وحدة`,inline:true},{name:'⏰ القادم',value:left>0?fmtTime(left):'✅ جاهز!',inline:true},{name:'📊 المستودع',value:inv.length>0?inv.map(i=>`${i.resource_name}: ${i.quantity}`).join(' | '):'فارغ'},{name:'💰 قيمة المستودع',value:fmt(inv.reduce((s,i)=>s+(i.quantity*i.unit_value),0)),inline:true})
-        .setFooter({text:'بيع منجم — لبيع بـ 70%'})]});
+    // تحصيل أرضي
+    if (cmd==='تحصيل_أرضي') {
+      const myLands=db.prepare('SELECT * FROM user_lands WHERE owner_id=?').all(msg.author.id);
+      if(myLands.length===0) return msg.reply('🏞️ ليس لديك أراضي!');
+      const now=Date.now();
+      let total=0;
+      const details=[];
+      for(const land of myLands){
+        const landDef=LANDS_LIST.find(l=>l.id===land.land_id);
+        const curVal=getLandCurrentValue(land);
+        const incomePerMin=Math.floor(curVal*LAND_INCOME_RATE);
+        const elapsedMin=(now-land.last_collected)/60000;
+        const earned=Math.floor(incomePerMin*elapsedMin);
+        if(earned>0){
+          total+=earned;
+          details.push(`${landDef?.name||land.land_id} مستوى ${land.level} → ${fmt(earned)}`);
+          db.prepare('UPDATE user_lands SET last_collected=? WHERE id=?').run(now,land.id);
+        }
+      }
+      if(total===0) return msg.reply('⏰ ما تراكم شيء بعد! انتظر دقيقة على الأقل');
+      // اقتطاع حصة المالك
+      let net=slaveCut(msg.author.id,total,'أرباح الأراضي');
+      db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(net,msg.author.id);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle('💰 تم تحصيل أرباح الأراضي!').setColor('#27ae60')
+        .setDescription(details.slice(0,5).join('\n')+(details.length>5?`\n... و ${details.length-5} أرض أخرى`:''))
+        .addFields({name:'💰 الإجمالي',value:fmt(total),inline:true},{name:'✅ الصافي',value:fmt(net),inline:true})
+        .setFooter({text:'يمكنك التحصيل في أي وقت!'})]});
+    }
+
+    // سوق — يعرض المواد مع أزرار الشراء (بإدخال الكمية من الشات)
+    if (cmd==='سوق') {
+      const freshUser=getUser(msg.author.id,msg.author.username);
+      const myMats=db.prepare('SELECT * FROM materials WHERE owner_id=? AND quantity>0').all(msg.author.id);
+      const matMap={};
+      for(const m of myMats) matMap[m.name]=m.quantity;
+      const matNames=Object.keys(MATERIALS_LIST);
+
+      // صف 1: خشب حديد طوب
+      const matsRow1=new ActionRowBuilder();
+      matNames.slice(0,3).forEach(n=>{
+        const info=MATERIALS_LIST[n];
+        matsRow1.addComponents(new ButtonBuilder()
+          .setCustomId(`askqty_${n}_${msg.author.id}`)
+          .setLabel(`${info.emoji} ${n} — ${fmt(info.price)}/وحدة`)
+          .setStyle(ButtonStyle.Primary));
+      });
+      // صف 2: حجر ذهب فولاذ
+      const matsRow2=new ActionRowBuilder();
+      matNames.slice(3).forEach(n=>{
+        const info=MATERIALS_LIST[n];
+        matsRow2.addComponents(new ButtonBuilder()
+          .setCustomId(`askqty_${n}_${msg.author.id}`)
+          .setLabel(`${info.emoji} ${n} — ${fmt(info.price)}/وحدة`)
+          .setStyle(ButtonStyle.Primary));
+      });
+      // زر شراء الكل
+      const allRow=new ActionRowBuilder();
+      allRow.addComponents(new ButtonBuilder()
+        .setCustomId(`askqty_كل_${msg.author.id}`)
+        .setLabel('🛒 شراء من الكل')
+        .setStyle(ButtonStyle.Success));
+
+      const stockDesc=matNames.map(n=>{
+        const info=MATERIALS_LIST[n];
+        const qty=matMap[n]||0;
+        return `${info.emoji} **${n}**: ${qty.toLocaleString()} وحدة | ${fmt(info.price)}/وحدة`;
+      }).join('\n');
+
+      const embed=new EmbedBuilder().setTitle('🏪 سوق المواد').setColor('#e67e22')
+        .addFields({name:'📦 مخزونك الحالي',value:stockDesc})
+        .setFooter({text:`رصيدك: ${fmt(freshUser.balance)} | اضغط على المادة ثم اكتب الكمية`});
+
+      return msg.reply({embeds:[embed],components:[matsRow1,matsRow2,allRow]});
+    }
+
+    // مواردي (عرض المواد)
+    if (cmd==='مواردي') {
+      const mats=db.prepare('SELECT * FROM materials WHERE owner_id=? AND quantity>0').all(msg.author.id);
+      if(mats.length===0) return msg.reply('📦 ما عندك مواد! اكتب `شراء_مواد [اسم] [كمية]`');
+      const desc=mats.map(m=>{const info=MATERIALS_LIST[m.name];return `${info?.emoji||'📦'} **${m.name}**: ${m.quantity.toLocaleString()} وحدة — ${fmt(m.quantity*(info?.price||0))}`;}).join('\n');
+      const totalVal=mats.reduce((s,m)=>s+m.quantity*(MATERIALS_LIST[m.name]?.price||0),0);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`📦 مواد ${msg.author.username}`).setColor('#e67e22')
+        .setDescription(desc).addFields({name:'💰 إجمالي القيمة',value:fmt(totalVal)}).setFooter({text:'شراء_مواد [اسم] [كمية] | شراء_مواد كل [كمية]'})]});
+    }
+
+    // شراء مواد
+    if (cmd==='شراء_مواد') {
+      // شراء_مواد كل [كمية] — يشتري من كل المواد نفس الكمية
+      if (args[0]==='كل') {
+        const qty=parseInt(args[1]);
+        if(isNaN(qty)||qty<=0) return msg.reply('❌ الاستخدام: شراء_مواد كل [كمية]');
+        const names=Object.keys(MATERIALS_LIST);
+        let totalCost=0;
+        for(const name of names) totalCost+=MATERIALS_LIST[name].price*qty;
+        if(user.balance<totalCost) return msg.reply(`❌ تحتاج **${fmt(totalCost)}** لشراء ${qty} من كل مادة`);
+        db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(totalCost,msg.author.id);
+        for(const name of names) addMaterial(msg.author.id,name,qty);
+        const desc=names.map(n=>`${MATERIALS_LIST[n].emoji} ${n}: ${qty} وحدة`).join(' | ');
+        return msg.reply({embeds:[new EmbedBuilder().setTitle(`✅ تم شراء المواد!`).setColor('#e67e22')
+          .addFields({name:'📦 المواد',value:desc,inline:false},{name:'💰 التكلفة',value:fmt(totalCost),inline:true})]});
+      }
+      // شراء_مواد [اسم] [كمية]
+      const matName=args[0], qty=parseInt(args[1]);
+      if(!matName||isNaN(qty)||qty<=0) return msg.reply(`❌ الاستخدام: \`شراء_مواد [اسم] [كمية]\` أو \`شراء_مواد كل [كمية]\`
+المواد: ${Object.keys(MATERIALS_LIST).join(' | ')}`);
+      const matInfo=MATERIALS_LIST[matName];
+      if(!matInfo) return msg.reply(`❌ مادة غير موجودة! المواد المتاحة: ${Object.keys(MATERIALS_LIST).join(' | ')}`);
+      const cost=matInfo.price*qty;
+      if(user.balance<cost) return msg.reply(`❌ تحتاج **${fmt(cost)}** لشراء ${qty} ${matName}`);
+      db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(cost,msg.author.id);
+      addMaterial(msg.author.id,matName,qty);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`✅ تم شراء المواد!`).setColor('#e67e22')
+        .addFields({name:`${matInfo.emoji} المادة`,value:`${matName}`,inline:true},{name:'📦 الكمية',value:`${qty.toLocaleString()}`,inline:true},{name:'💰 التكلفة',value:fmt(cost),inline:true})]});
+    }
+
+    // تطوير أرض
+    if (cmd==='تطوير_أرض') {
+      const landDbId=parseInt(args[0]);
+      if(isNaN(landDbId)) return msg.reply('❌ الاستخدام: تطوير_أرض [رقم الأرض]\nاكتب أراضيي لعرض أرقام أراضيك');
+      const land=db.prepare('SELECT * FROM user_lands WHERE id=? AND owner_id=?').get(landDbId,msg.author.id);
+      if(!land) return msg.reply('❌ الأرض غير موجودة! اكتب أراضيي');
+      if(land.level>=10) return msg.reply('🏆 هذه الأرض وصلت أعلى مستوى (10)!');
+      const req=UPGRADE_REQUIREMENTS[land.level-1];
+      const landDef=LANDS_LIST.find(l=>l.id===land.land_id);
+      // تحقق من المواد
+      const missing=[];
+      for(const [matName,needed] of Object.entries(req)){
+        if(needed===0) continue;
+        const have=getMaterial(msg.author.id,matName);
+        if(!have||have.quantity<needed) missing.push(`${MATERIALS_LIST[matName]?.emoji} ${matName}: تحتاج ${needed.toLocaleString()} عندك ${have?.quantity||0}`);
+      }
+      if(missing.length>0){
+        return msg.reply({embeds:[new EmbedBuilder().setTitle(`❌ ما تكفي المواد للتطوير إلى مستوى ${land.level+1}`).setColor('#e74c3c')
+          .setDescription(missing.join('\n'))
+          .setFooter({text:'شراء_مواد [اسم] [كمية] لشراء المواد الناقصة'})]});
+      }
+      // خصم المواد
+      for(const [matName,needed] of Object.entries(req)){
+        if(needed===0) continue;
+        db.prepare('UPDATE materials SET quantity=quantity-? WHERE owner_id=? AND name=?').run(needed,msg.author.id,matName);
+      }
+      const newLevel=land.level+1;
+      const newValue=Math.floor(landDef.price*(LEVEL_MULTIPLIERS[newLevel-1]||1));
+      db.prepare('UPDATE user_lands SET level=?,current_value=? WHERE id=?').run(newLevel,newValue,land.id);
+      const newIncomePerMin=Math.floor(newValue*LAND_INCOME_RATE);
+      const nextReq=newLevel<10?UPGRADE_REQUIREMENTS[newLevel-1]:null;
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`🏗️ تم التطوير إلى مستوى ${newLevel}!`).setColor('#27ae60')
+        .addFields(
+          {name:'🏞️ الأرض',value:landDef?.name||land.land_id,inline:true},
+          {name:'🏗️ المستوى الجديد',value:`${newLevel}/10`,inline:true},
+          {name:'💰 القيمة الجديدة',value:fmt(newValue),inline:true},
+          {name:'📈 دخل/دقيقة',value:fmt(newIncomePerMin),inline:true},
+          nextReq?{name:`⬆️ متطلبات مستوى ${newLevel+1}`,value:Object.entries(nextReq).filter(([,v])=>v>0).map(([n,v])=>`${MATERIALS_LIST[n]?.emoji} ${n}: ${v.toLocaleString()}`).join(' | '),inline:false}:{name:'🏆 أعلى مستوى!',value:'وصلت للمستوى الأقصى!',inline:false},
+        ).setFooter({text:'تحصيل_أرضي لجمع الأرباح'})]});
+    }
+
+    // بيع أرض
+    if (cmd==='بيع_أرض') {
+      const landDbId=parseInt(args[0]);
+      if(isNaN(landDbId)) return msg.reply('❌ الاستخدام: بيع_أرض [رقم الأرض]');
+      const land=db.prepare('SELECT * FROM user_lands WHERE id=? AND owner_id=?').get(landDbId,msg.author.id);
+      if(!land) return msg.reply('❌ الأرض غير موجودة!');
+      const curVal=getLandCurrentValue(land);
+      const sellPrice=Math.floor(curVal*0.70);
+      db.prepare('DELETE FROM user_lands WHERE id=?').run(land.id);
+      db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(sellPrice,msg.author.id);
+      const landDef=LANDS_LIST.find(l=>l.id===land.land_id);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`💸 تم بيع ${landDef?.name||land.land_id}`).setColor('#ffd700')
+        .addFields({name:'🏗️ المستوى',value:`${land.level}/10`,inline:true},{name:'💰 القيمة الحالية',value:fmt(curVal),inline:true},{name:'✅ استلمت (70%)',value:fmt(sellPrice),inline:true})]});
+    }
+
+    // متطلبات التطوير
+    if (cmd==='متطلبات') {
+      const level=parseInt(args[0]);
+      if(isNaN(level)||level<1||level>9) return msg.reply('❌ الاستخدام: `متطلبات [1-9]` (مستوى التطوير من 1 إلى 9)');
+      const req=UPGRADE_REQUIREMENTS[level-1];
+      const totalCost=Object.entries(req).reduce((s,[n,v])=>s+(MATERIALS_LIST[n]?.price||0)*v,0);
+      const desc=Object.entries(req).filter(([,v])=>v>0).map(([n,v])=>`${MATERIALS_LIST[n]?.emoji} **${n}**: ${v.toLocaleString()} وحدة — ${fmt((MATERIALS_LIST[n]?.price||0)*v)}`).join('\n');
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`⬆️ متطلبات التطوير إلى مستوى ${level+1}`).setColor('#3498db')
+        .setDescription(desc).addFields({name:'💰 إجمالي تكلفة المواد',value:fmt(totalCost)}).setFooter({text:`شراء_مواد كل [كمية] لشراء من الكل دفعة`})]});
+    }
+
+    // أسعار المواد
+    if (cmd==='مواد') {
+      const desc=Object.entries(MATERIALS_LIST).map(([n,m])=>`${m.emoji} **${n}** — ${fmt(m.price)}/وحدة`).join('\n');
+      return msg.reply({embeds:[new EmbedBuilder().setTitle('🏪 أسعار المواد').setColor('#e67e22')
+        .setDescription(desc).setFooter({text:'شراء_مواد [اسم] [كمية] | شراء_مواد كل [كمية]'})]});
     }
 
     // قرض / سداد
@@ -573,10 +821,13 @@ client.on('messageCreate', async (msg) => {
       const amount=parseAmount(args[0]);
       if(isNaN(amount)||amount<=0) return msg.reply('❌ الاستخدام: `قرض المبلغ`');
       if(user.loan>0) return msg.reply('❌ عندك قرض! سدده أولاً');
+      // كولداون 24 ساعة بين كل قرض وآخر
+      const loanCooldown=Math.max(0,24*60*60*1000-(Date.now()-(user.last_loan||0)));
+      if(loanCooldown>0) return msg.reply(`⏰ تقدر تأخذ قرض جديد بعد **${fmtTime(loanCooldown)}**`);
       if(amount>20_000) return msg.reply(`❌ الحد الأقصى: **${fmt(20_000)}**`);
       const repay=Math.floor(amount*1.10), due=Date.now()+7*24*60*60*1000;
-      db.prepare('UPDATE users SET balance=balance+?, loan=?, loan_due=? WHERE id=?').run(amount,repay,due,msg.author.id);
-      return msg.reply({embeds:[new EmbedBuilder().setTitle('🏦 تم منح القرض').setColor('#ffd700').addFields({name:'💰 استلمت',value:fmt(amount),inline:true},{name:'💸 للسداد +10%',value:fmt(repay),inline:true},{name:'⏰ المهلة',value:'7 أيام',inline:true}).setFooter({text:'⚠️ عدم السداد يؤدي لمصادرة أموالك!'})]});
+      db.prepare('UPDATE users SET balance=balance+?, loan=?, loan_due=?, last_loan=? WHERE id=?').run(amount,repay,due,Date.now(),msg.author.id);
+      return msg.reply({embeds:[new EmbedBuilder().setTitle('🏦 تم منح القرض').setColor('#ffd700').addFields({name:'💰 استلمت',value:fmt(amount),inline:true},{name:'💸 للسداد +10%',value:fmt(repay),inline:true},{name:'⏰ المهلة',value:'7 أيام',inline:true}).setFooter({text:'⚠️ القرض القادم بعد 24 ساعة | عدم السداد يؤدي لمصادرة أموالك!'})]});
     }
     if (cmd==='سداد') {
       if(user.loan===0) return msg.reply('✅ ليس عليك أي قرض!');
@@ -589,7 +840,7 @@ client.on('messageCreate', async (msg) => {
 
     // حماية
     if (cmd==='حماية') {
-      const opts={'6':{hours:6,price:5_000},'12':{hours:12,price:9_000},'24':{hours:24,price:15_000},'72':{hours:72,price:35_000}};
+      const opts={'6':{hours:6,price:5_000},'12':{hours:12,price:20_000},'24':{hours:24,price:150_000},'72':{hours:72,price:350_000}};
       const opt=opts[args[0]];
       if(!opt) return msg.reply('❌ الاستخدام: `حماية 6/12/24/72`\n6س=5K | 12س=9K | 24س=15K | 3أيام=35K');
       if(user.balance<opt.price) return msg.reply(`❌ تحتاج **${fmt(opt.price)}**`);
@@ -604,7 +855,7 @@ client.on('messageCreate', async (msg) => {
       const amount=parseAmount(args[0],user.balance);
       if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: `مجازفة [مبلغ/نص/ربع/كل]` (الحد الأدنى 100)');
       if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
-      const win=Math.random()>0.5;
+      const win=Math.random()>0.60; // 40% ربح فقط
       db.prepare('UPDATE users SET last_gamble=? WHERE id=?').run(Date.now(),msg.author.id);
       if(win){let gain=slaveCut(msg.author.id,amount,'المجازفة');db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);return msg.reply({embeds:[new EmbedBuilder().setTitle('🎉 ربحت!').setColor('#00ff88').addFields({name:'🎲',value:'✅ فزت',inline:true},{name:'💰 الربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});}
       else{db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(amount,msg.author.id);return msg.reply({embeds:[new EmbedBuilder().setTitle('😭 خسرت!').setColor('#e74c3c').addFields({name:'🎲',value:'❌ خسرت',inline:true},{name:'💰 الخسارة',value:fmt(amount),inline:true},{name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-amount)),inline:true})]});}
@@ -616,7 +867,11 @@ client.on('messageCreate', async (msg) => {
       const amount=parseAmount(args[0],user.balance), riskKey=args[1]||'منخفض';
       if(isNaN(amount)||amount<1000) return msg.reply('❌ الاستخدام: `استثمر [مبلغ] [منخفض/متوسط/عالي]`');
       if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
-      const risks={منخفض:{winChance:0.80,minG:0.10,maxG:0.30,maxL:0.05},متوسط:{winChance:0.60,minG:0.20,maxG:0.60,maxL:0.25},عالي:{winChance:0.45,minG:0.50,maxG:1.50,maxL:0.40}};
+      const risks={
+        منخفض:{winChance:0.55,minG:0.05,maxG:0.15,maxL:0.12}, // 55% ربح صغير، خسارة 12%
+        متوسط:{winChance:0.40,minG:0.15,maxG:0.45,maxL:0.30}, // 40% ربح، خسارة 30%
+        عالي: {winChance:0.25,minG:0.50,maxG:1.20,maxL:0.60}, // 25% ربح كبير، خسارة 60%
+      };
       const cfg=risks[riskKey]||risks['منخفض'], win=Math.random()<cfg.winChance;
       db.prepare('UPDATE users SET last_invest=? WHERE id=?').run(Date.now(),msg.author.id);
       if(win){let gain=Math.floor(amount*(cfg.minG+Math.random()*(cfg.maxG-cfg.minG)));gain=slaveCut(msg.author.id,gain,'الاستثمار');db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);return msg.reply({embeds:[new EmbedBuilder().setTitle('📈 استثمار ناجح!').setColor('#00ff88').addFields({name:'💰 المستثمر',value:fmt(amount),inline:true},{name:'📈 الربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});}
@@ -627,13 +882,14 @@ client.on('messageCreate', async (msg) => {
     if (cmd==='تداول') {
       const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply(`⏰ انتظر **${fmtTime(left)}**`);
       const amount=parseAmount(args[0],user.balance);
-      if(isNaN(amount)||amount<5000) return msg.reply('❌ الاستخدام: `تداول [مبلغ]` (الحد الأدنى 5000)');
+      if(isNaN(amount)||amount<500) return msg.reply('❌ الاستخدام: `تداول [مبلغ]` (الحد الأدنى 500)');
       if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
       const roll=Math.random(); let rawChange, result;
-      if(roll>0.7){rawChange=Math.floor(amount*(0.5+Math.random()));result='📈 موجة صعود!';}
-      else if(roll>0.4){rawChange=Math.floor(amount*0.1*Math.random());result='📊 ارتفاع بسيط';}
-      else if(roll>0.15){rawChange=-Math.floor(amount*0.2*Math.random());result='📉 تراجع طفيف';}
-      else{rawChange=-Math.floor(amount*(0.3+Math.random()*0.4));result='💥 انهيار!';}
+      // 20% موجة صعود | 15% ارتفاع بسيط | 30% تراجع | 35% انهيار
+      if(roll>0.80){rawChange=Math.floor(amount*(0.3+Math.random()*0.4));result='📈 موجة صعود!';}
+      else if(roll>0.65){rawChange=Math.floor(amount*(0.05+Math.random()*0.10));result='📊 ارتفاع بسيط';}
+      else if(roll>0.35){rawChange=-Math.floor(amount*(0.15+Math.random()*0.20));result='📉 تراجع طفيف';}
+      else{rawChange=-Math.floor(amount*(0.35+Math.random()*0.45));result='💥 انهيار!';}
       db.prepare('UPDATE users SET last_trade=? WHERE id=?').run(Date.now(),msg.author.id);
       if(rawChange>0){let gain=slaveCut(msg.author.id,rawChange,'التداول');db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(gain,msg.author.id);return msg.reply({embeds:[new EmbedBuilder().setTitle(`📊 ${result}`).setColor('#00ff88').addFields({name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'📈 ربح',value:fmt(gain),inline:true},{name:'💳 الرصيد',value:fmt(user.balance+gain),inline:true})]});}
       else{const loss=Math.abs(rawChange);db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(loss,msg.author.id);return msg.reply({embeds:[new EmbedBuilder().setTitle(`📊 ${result}`).setColor('#e74c3c').addFields({name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'📉 خسارة',value:fmt(loss),inline:true},{name:'💳 الرصيد',value:fmt(Math.max(0,user.balance-loss)),inline:true})]});}
@@ -648,10 +904,10 @@ client.on('messageCreate', async (msg) => {
       const victim=db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
       if(!victim||victim.balance<500) return msg.reply('😅 الضحية فقيرة!');
       if(victim.protection_until>Date.now()){db.prepare('UPDATE users SET reputation=MAX(0,reputation-5) WHERE id=?').run(msg.author.id);return msg.reply(`🛡 **${target.username}** محمي! -5 سمعة!`);}
-      const success=Math.random()>0.45;
+      const success=Math.random()>0.65; // 35% احتمال نجاح فقط
       db.prepare('UPDATE users SET last_rob=? WHERE id=?').run(Date.now(),msg.author.id);
       if(success){
-        let stolen=Math.floor(Math.random()*victim.balance*0.15)+100;
+        let stolen=Math.floor(Math.random()*victim.balance*0.10)+50; // يسرق 10% بدل 15%
         stolen=slaveCut(msg.author.id,stolen,'السرقة');
         db.prepare('UPDATE users SET balance=balance+?,reputation=MAX(0,reputation-10) WHERE id=?').run(stolen,msg.author.id);
         db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(Math.floor(Math.random()*victim.balance*0.15)+100,target.id);
@@ -680,10 +936,14 @@ client.on('messageCreate', async (msg) => {
       const selectedCountry=country||TRIP_COUNTRIES[0];
       // النتائج حسب مستوى الخطورة
       const riskProfiles={
-        منخفض: [{r:'كارثة',p:-0.30,c:5},{r:'خسارة',p:-0.10,c:20},{r:'عادي',p:0.03,c:35},{r:'جيد',p:0.15,c:25},{r:'ممتاز',p:0.35,c:12},{r:'استثنائي',p:0.70,c:3}],
-        متوسط: [{r:'كارثة',p:-0.40,c:8},{r:'خسارة',p:-0.15,c:20},{r:'عادي',p:0.04,c:27},{r:'جيد',p:0.20,c:25},{r:'ممتاز',p:0.50,c:13},{r:'استثنائي',p:1.00,c:7}],
-        عالي:  [{r:'كارثة',p:-0.60,c:15},{r:'خسارة',p:-0.25,c:20},{r:'عادي',p:0.05,c:20},{r:'جيد',p:0.30,c:20},{r:'ممتاز',p:0.80,c:15},{r:'استثنائي',p:1.50,c:10}],
-        خطر:   [{r:'كارثة',p:-1.00,c:40},{r:'خسارة',p:-0.50,c:20},{r:'عادي',p:0.10,c:10},{r:'جيد',p:0.50,c:10},{r:'ممتاز',p:1.20,c:10},{r:'استثنائي',p:3.00,c:10}],
+        // منخفض: 45% خسارة، 55% ربح صغير
+        منخفض: [{r:'كارثة',p:-0.35,c:10},{r:'خسارة',p:-0.12,c:35},{r:'عادي',p:0.02,c:25},{r:'جيد',p:0.10,c:20},{r:'ممتاز',p:0.25,c:8},{r:'استثنائي',p:0.50,c:2}],
+        // متوسط: 55% خسارة، 45% ربح
+        متوسط: [{r:'كارثة',p:-0.45,c:15},{r:'خسارة',p:-0.20,c:40},{r:'عادي',p:0.03,c:20},{r:'جيد',p:0.18,c:15},{r:'ممتاز',p:0.45,c:7},{r:'استثنائي',p:0.90,c:3}],
+        // عالي: 65% خسارة، 35% ربح كبير
+        عالي:  [{r:'كارثة',p:-0.65,c:20},{r:'خسارة',p:-0.30,c:45},{r:'عادي',p:0.04,c:10},{r:'جيد',p:0.25,c:12},{r:'ممتاز',p:0.70,c:8},{r:'استثنائي',p:1.30,c:5}],
+        // خطر: 75% خسارة، لكن الربح ضخم
+        خطر:   [{r:'كارثة',p:-1.00,c:50},{r:'خسارة',p:-0.60,c:25},{r:'عادي',p:0.08,c:8},{r:'جيد',p:0.40,c:8},{r:'ممتاز',p:1.00,c:5},{r:'استثنائي',p:2.50,c:4}],
       };
       const profile=riskProfiles[selectedCountry.risk]||riskProfiles['متوسط'];
       const totalChance=profile.reduce((s,p)=>s+p.c,0);
@@ -754,13 +1014,12 @@ client.on('messageCreate', async (msg) => {
     // إحصائياتي
     if (['إحصائياتي','احصائياتي','احصاياتي','إحصاياتي'].includes(cmd)) {
       const level=getLevel(user.balance+user.bank), repLvl=getReputation(user.reputation);
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
       const slaveRec=db.prepare('SELECT * FROM slaves WHERE slave_id=?').get(msg.author.id);
       const mySlaves=db.prepare('SELECT * FROM slaves WHERE owner_id=?').all(msg.author.id);
       return msg.reply({embeds:[new EmbedBuilder().setTitle(`📊 إحصائيات — ${msg.author.username}`).setColor('#9b59b6')
         .addFields(
           {name:'🏆 المستوى',value:level.name,inline:true},{name:'⭐ السمعة',value:`${user.reputation}/100 ${repLvl.name}`,inline:true},{name:'💰 الثروة',value:fmt(user.balance+user.bank),inline:true},
-          {name:'⛏️ المنجم',value:myMine?MINES_LIST.find(m=>m.id===myMine.mine_id)?.name:'لا يوجد',inline:true},{name:'💳 قرض',value:user.loan>0?fmt(user.loan):'لا يوجد',inline:true},{name:'🛡 حماية',value:user.protection_until>Date.now()?`✅ ${fmtTime(user.protection_until-Date.now())}`:'❌',inline:true},
+          {name:'💳 قرض',value:user.loan>0?fmt(user.loan):'لا يوجد',inline:true},{name:'🛡 حماية',value:user.protection_until>Date.now()?`✅ ${fmtTime(user.protection_until-Date.now())}`:'❌',inline:true},
           {name:'⛓️ العبودية',value:slaveRec?'مملوك (-20%)':'حر 🕊️',inline:true},{name:'👥 عبيدي',value:`${mySlaves.length}`,inline:true},
         )]});
     }
@@ -773,8 +1032,6 @@ client.on('messageCreate', async (msg) => {
 
     // وقت
     if (cmd==='وقت') {
-      const myMine=db.prepare('SELECT * FROM user_mines WHERE owner_id=?').get(msg.author.id);
-      const mineLeft=myMine?Math.max(0,MINE_COOLDOWN-(Date.now()-(myMine.last_mined||0))):-1;
       const tranLeft=Math.max(0,TRANSFER_COOLDOWN-(Date.now()-(user.last_transfer||0)));
       const fields=[
         {name:'💰 راتب',value:cooldownLeft(user,'راتب')>0?`⏰ ${fmtTime(cooldownLeft(user,'راتب'))}`:'✅ جاهز',inline:true},
@@ -785,9 +1042,10 @@ client.on('messageCreate', async (msg) => {
         {name:'🦹 سرقة',value:cooldownLeft(user,'سرقة')>0?`⏰ ${fmtTime(cooldownLeft(user,'سرقة'))}`:'✅ جاهز',inline:true},
         {name:'💸 تحويل',value:tranLeft>0?`⏰ ${fmtTime(tranLeft)}`:'✅ جاهز',inline:true},
       ];
-      if(mineLeft>=0) fields.push({name:'⛏️ تعدين',value:mineLeft>0?`⏰ ${fmtTime(mineLeft)}`:'✅ جاهز',inline:true});
-      const lootCooldown=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+      const lootCooldown=Math.max(0,3*60*60*1000-(Date.now()-(user.last_lootbox||0)));
       fields.push({name:'🎁 صندوق',value:lootCooldown>0?`⏰ ${fmtTime(lootCooldown)}`:'✅ جاهز',inline:true});
+      const loanCooldown2=Math.max(0,24*60*60*1000-(Date.now()-(user.last_loan||0)));
+      fields.push({name:'🏦 قرض',value:loanCooldown2>0?`⏰ ${fmtTime(loanCooldown2)}`:'✅ جاهز',inline:true});
       return msg.reply({embeds:[new EmbedBuilder().setTitle(`⏰ أوقات الأوامر — ${msg.author.username}`).setColor('#3498db').addFields(...fields).setTimestamp()]});
     }
 
@@ -812,12 +1070,14 @@ client.on('messageCreate', async (msg) => {
         db.prepare('UPDATE users SET balance=balance+? WHERE id=?').run(actualPay,msg.author.id);
         db.prepare("UPDATE cases SET status='closed',verdict='plaintiff' WHERE id=?").run(caseId);
         db.prepare('UPDATE users SET reputation=MAX(0,reputation-20) WHERE id=?').run(target.id);
+        db.prepare('DELETE FROM rob_log WHERE id=?').run(robRecord.id);
         try{client.users.fetch(target.id).then(u=>u.send(`⚖️ **خسرت القضية!**\nالحكم: دفع **${fmt(actualPay)}** و -20 سمعة`).catch(()=>{})).catch(()=>{});}catch(e){}
         return msg.reply({embeds:[new EmbedBuilder().setTitle('⚖️ فزت بالقضية!').setColor('#00ff88')
           .addFields({name:'🦹 المتهم',value:target.username,inline:true},{name:'💰 المسروق',value:fmt(robRecord.amount),inline:true},{name:'✅ التعويض ×3',value:fmt(actualPay),inline:true},{name:'📋 الحكم',value:'إدانة',inline:false})
           .setFooter({text:'⚠️ المتهم خسر 20 سمعة وسيظهر في ملفه كحرامي'})]});
       } else {
         db.prepare("UPDATE cases SET status='closed',verdict='defendant' WHERE id=?").run(caseId);
+        db.prepare('DELETE FROM rob_log WHERE id=?').run(robRecord.id);
         const courtFee=Math.floor(robRecord.amount*0.1);
         db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(courtFee,msg.author.id);
         db.prepare('UPDATE government SET treasury=treasury+? WHERE id=1').run(courtFee);
@@ -897,10 +1157,10 @@ client.on('messageCreate', async (msg) => {
       const victim=db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
       if(!victim||victim.balance<500) return msg.reply('😅 الضحية فقيرة!');
       if(victim.protection_until>Date.now()) return msg.reply(`🛡 **${target.username}** محمي!`);
-      const success=Math.random()>0.35;
+      const success=Math.random()>0.55; // 45% احتمال نجاح
       db.prepare('UPDATE users SET last_rob=? WHERE id=?').run(Date.now(),msg.author.id);
       if(success){
-        let stolen=Math.floor(Math.random()*victim.balance*0.20)+200;
+        let stolen=Math.floor(Math.random()*victim.balance*0.15)+100; // 15% بدل 20%
         stolen=slaveCut(msg.author.id,stolen,'السرقة الجماعية');
         db.prepare('UPDATE users SET balance=balance+?,reputation=MAX(0,reputation-10) WHERE id=?').run(stolen,msg.author.id);
         db.prepare('UPDATE users SET balance=MAX(0,balance-?) WHERE id=?').run(stolen,target.id);
@@ -947,6 +1207,7 @@ client.on('messageCreate', async (msg) => {
           {name:'🛡 الحماية',value:['`حماية 6/12/24/72`'].join('\n')},
           {name:'⚖️ القضايا',value:['`قضية @شخص` `قضاياي`'].join('\n')},
           {name:'🔫 العصابات',value:['`انشاء_عصابة [اسم]` `دعوة_عصابة @شخص` `عصابتي`','`سرقة_جماعية @شخص` `إيداع_عصابة مبلغ` `مغادرة_عصابة` `عصابات`'].join('\n')},
+          {name:'🏞️ الأراضي',value:['`أراضي` — السوق | `شراء أرض [l1-l10]`','`أراضيي` — أراضيك | `تحصيل_أرضي` — اجمع أرباحك','`تطوير_أرض [رقم]` — طور أرضك | `بيع_أرض [رقم]`','`مواد` — أسعار | `شراء_مواد [اسم] [كمية]`','`شراء_مواد كل [كمية]` | `مواردي` | `متطلبات [1-9]`'].join('\n')},
           {name:'📊 عام',value:['`متصدرون` `الحكومة`'].join('\n')},
         ).setFooter({text:'💡 كل | نص | ربع | ثلث | 1k | 1m | 1b | 1t'})]});
     }
@@ -971,15 +1232,15 @@ client.on('messageCreate', async (msg) => {
     if (cmd==='ريست') {
       const target=msg.mentions.users.first(); if(!target) return msg.reply('❌ الاستخدام: `ريست @شخص`');
       db.prepare('UPDATE users SET balance=5000,bank=0,loan=0,loan_due=0,reputation=100 WHERE id=?').run(target.id);
-      db.prepare('DELETE FROM user_mines WHERE owner_id=?').run(target.id);
-      db.prepare('DELETE FROM mine_inventory WHERE owner_id=?').run(target.id);
+      db.prepare('DELETE FROM user_lands WHERE owner_id=?').run(target.id);
+      db.prepare('DELETE FROM materials WHERE owner_id=?').run(target.id);
       db.prepare('DELETE FROM slaves WHERE slave_id=? OR owner_id=?').run(target.id,target.id);
       return msg.reply(`✅ تم ريست حساب **${target.username}**`);
     }
     if (cmd==='ريست_الكل') {
       if(args[0]!=='تأكيد') return msg.reply('⚠️ للتأكيد: `ريست_الكل تأكيد`');
       db.prepare('UPDATE users SET balance=5000,bank=0,loan=0,loan_due=0,reputation=100,last_salary=0,last_work=0,last_gamble=0,last_invest=0,last_trade=0,last_rob=0,last_transfer=0,last_mine=0,protection_until=0').run();
-      db.prepare('DELETE FROM user_mines').run(); db.prepare('DELETE FROM mine_inventory').run();
+      db.prepare('DELETE FROM user_lands').run(); db.prepare('DELETE FROM materials').run();
       db.prepare('DELETE FROM slaves').run(); db.prepare('UPDATE government SET treasury=0').run();
       return msg.reply('✅ تم ريست الكل! 🔄');
     }
@@ -995,10 +1256,231 @@ client.on('messageCreate', async (msg) => {
 
 client.on('interactionCreate', async (interaction) => {
   if(!interaction.isButton()) return;
-  const [type,pageStr]=interaction.customId.split('_');
+  const customId=interaction.customId;
+
+  // زر شراء أرض
+  if(customId.startsWith('buy_land_')) {
+    const parts=customId.split('_'); // buy_land_l1_userId
+    const landId=parts[2], userId=parts[3];
+    if(interaction.user.id!==userId) return interaction.reply({content:'❌ هذه الأزرار ليست لك!',ephemeral:true});
+    const landDef=LANDS_LIST.find(l=>l.id===landId);
+    if(!landDef) return interaction.reply({content:'❌ أرض غير موجودة',ephemeral:true});
+    const freshUser=getUser(userId,interaction.user.username);
+    if(freshUser.balance<landDef.price) return interaction.reply({content:`❌ ما يكفي رصيدك! تحتاج **${fmt(landDef.price)}** وعندك **${fmt(freshUser.balance)}**`,ephemeral:true});
+    db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(landDef.price,userId);
+    db.prepare('INSERT INTO user_lands (owner_id,land_id,level,current_value,last_collected) VALUES (?,?,1,?,?)').run(userId,landDef.id,landDef.price,Date.now());
+    const income=Math.floor(landDef.price*LAND_INCOME_RATE);
+    // تحديث الرسالة بالأزرار المحدثة
+    const updatedUser=getUser(userId);
+    const rows=[];
+    for(let page=0;page<2;page++){
+      const row=new ActionRowBuilder();
+      const start=page*5;
+      LANDS_LIST.slice(start,start+5).forEach(l=>{
+        const canAfford=updatedUser.balance>=l.price;
+        row.addComponents(new ButtonBuilder().setCustomId(`buy_land_${l.id}_${userId}`).setLabel(`${l.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} ${fmt(l.price)}`).setStyle(canAfford?ButtonStyle.Success:ButtonStyle.Secondary).setDisabled(!canAfford));
+      });
+      rows.push(row);
+    }
+    // بناء أزرار الترقية للأراضي المملوكة
+    const myLandsForUpgrade=db.prepare('SELECT * FROM user_lands WHERE owner_id=? AND level < 10').all(userId);
+    const upgradeRows=[];
+    if(myLandsForUpgrade.length>0){
+      // صف ترقية (حد 5 أزرار)
+      const upRow=new ActionRowBuilder();
+      myLandsForUpgrade.slice(0,5).forEach(land=>{
+        const lDef=LANDS_LIST.find(l=>l.id===land.land_id);
+        const req=UPGRADE_REQUIREMENTS[land.level-1];
+        // تحقق من المواد
+        let canUpgrade=true;
+        for(const [mName,needed] of Object.entries(req)){
+          if(needed===0) continue;
+          const have=db.prepare('SELECT quantity FROM materials WHERE owner_id=? AND name=?').get(userId,mName);
+          if(!have||have.quantity<needed){canUpgrade=false;break;}
+        }
+        upRow.addComponents(new ButtonBuilder()
+          .setCustomId(`upgrade_land_${land.id}_${userId}`)
+          .setLabel(`⬆️ ${lDef?.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} Lv${land.level}→${land.level+1}`)
+          .setStyle(canUpgrade?ButtonStyle.Primary:ButtonStyle.Secondary)
+          .setDisabled(!canUpgrade)
+        );
+      });
+      upgradeRows.push(upRow);
+    }
+    const embed=new EmbedBuilder().setTitle('🏞️ سوق الأراضي').setColor('#27ae60')
+      .setDescription(LANDS_LIST.map(l=>`${l.name} \`[${l.id}]\` — 💰 ${fmt(l.price)} | 📈 ${fmt(Math.floor(l.price*LAND_INCOME_RATE))}/دقيقة`).join('\n'))
+      .setFooter({text:`رصيدك: ${fmt(updatedUser.balance)} | ✅ اشتريت ${landDef.name}!`});
+    return interaction.update({embeds:[embed],components:[...rows,...upgradeRows]});
+  }
+
+  // زر شراء مواد
+  if(customId.startsWith('buy_mat_')) {
+    const parts=customId.split('_'); // buy_mat_خشب_100_userId
+    const matName=parts[2], qty=parseInt(parts[3]), userId=parts[4];
+    if(interaction.user.id!==userId) return interaction.reply({content:'❌ هذه الأزرار ليست لك!',ephemeral:true});
+    const matInfo=MATERIALS_LIST[matName];
+    if(!matInfo) return interaction.reply({content:'❌ مادة غير موجودة',ephemeral:true});
+    const cost=matInfo.price*qty;
+    const freshUser=getUser(userId,interaction.user.username);
+    if(freshUser.balance<cost) return interaction.reply({content:`❌ ما يكفي رصيدك! تحتاج **${fmt(cost)}** وعندك **${fmt(freshUser.balance)}**`,ephemeral:true});
+    db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(cost,userId);
+    const existing=db.prepare('SELECT * FROM materials WHERE owner_id=? AND name=?').get(userId,matName);
+    if(existing) db.prepare('UPDATE materials SET quantity=quantity+? WHERE owner_id=? AND name=?').run(qty,userId,matName);
+    else db.prepare('INSERT INTO materials (owner_id,name,quantity) VALUES (?,?,?)').run(userId,matName,qty);
+    // تحديث الرسالة
+    const updatedUser=getUser(userId);
+    const myMats=db.prepare('SELECT * FROM materials WHERE owner_id=? AND quantity>0').all(userId);
+    const matMap={};
+    for(const m of myMats) matMap[m.name]=m.quantity;
+    const matNames=Object.keys(MATERIALS_LIST);
+    const matsRow1=new ActionRowBuilder();
+    const matsRow2=new ActionRowBuilder();
+    matNames.slice(0,3).forEach(n=>{const info=MATERIALS_LIST[n];matsRow1.addComponents(new ButtonBuilder().setCustomId(`buy_mat_${n}_10_${userId}`).setLabel(`${info.emoji} ${n} ×10 (${fmt(info.price*10)})`).setStyle(ButtonStyle.Primary));});
+    matNames.slice(3).forEach(n=>{const info=MATERIALS_LIST[n];matsRow2.addComponents(new ButtonBuilder().setCustomId(`buy_mat_${n}_100_${userId}`).setLabel(`${info.emoji} ${n} ×100 (${fmt(info.price*100)})`).setStyle(ButtonStyle.Primary));});
+    const row100=new ActionRowBuilder();
+    matNames.slice(0,5).forEach(n=>{const info=MATERIALS_LIST[n];row100.addComponents(new ButtonBuilder().setCustomId(`buy_mat_${n}_100_${userId}`).setLabel(`${info.emoji} ×100 (${fmt(info.price*100)})`).setStyle(ButtonStyle.Secondary));});
+    const row1k=new ActionRowBuilder();
+    matNames.slice(0,5).forEach(n=>{const info=MATERIALS_LIST[n];row1k.addComponents(new ButtonBuilder().setCustomId(`buy_mat_${n}_1000_${userId}`).setLabel(`${info.emoji} ×1K (${fmt(info.price*1000)})`).setStyle(ButtonStyle.Secondary));});
+    const stockDesc=matNames.map(n=>{const info=MATERIALS_LIST[n];const q=matMap[n]||0;return `${info.emoji} **${n}**: ${q.toLocaleString()} وحدة | ${fmt(info.price)}/وحدة`;}).join('\n');
+    const embed=new EmbedBuilder().setTitle('🏪 سوق المواد').setColor('#e67e22')
+      .addFields({name:'📦 مخزونك الحالي',value:stockDesc,inline:false})
+      .setFooter({text:`رصيدك: ${fmt(updatedUser.balance)} | ✅ اشتريت ${qty} ${matName} بـ ${fmt(cost)}`});
+    return interaction.update({embeds:[embed],components:[matsRow1,matsRow2,row100,row1k]});
+  }
+
+  // زر ترقية أرض
+  if(customId.startsWith('upgrade_land_')) {
+    const parts=customId.split('_'); // upgrade_land_DBID_userId
+    const landDbId=parseInt(parts[2]), userId=parts[3];
+    if(interaction.user.id!==userId) return interaction.reply({content:'❌ هذه الأزرار ليست لك!',ephemeral:true});
+    const land=db.prepare('SELECT * FROM user_lands WHERE id=? AND owner_id=?').get(landDbId,userId);
+    if(!land) return interaction.reply({content:'❌ الأرض غير موجودة!',ephemeral:true});
+    if(land.level>=10) return interaction.reply({content:'🏆 هذه الأرض وصلت أعلى مستوى!',ephemeral:true});
+    const req=UPGRADE_REQUIREMENTS[land.level-1];
+    const landDef=LANDS_LIST.find(l=>l.id===land.land_id);
+    const missing=[];
+    for(const [mName,needed] of Object.entries(req)){
+      if(needed===0) continue;
+      const have=db.prepare('SELECT quantity FROM materials WHERE owner_id=? AND name=?').get(userId,mName);
+      if(!have||have.quantity<needed) missing.push(`${MATERIALS_LIST[mName]?.emoji} ${mName}: تحتاج ${needed.toLocaleString()} عندك ${have?.quantity||0}`);
+    }
+    if(missing.length>0) return interaction.reply({content:`❌ مواد ناقصة:\n${missing.join('\n')}`,ephemeral:true});
+    for(const [mName,needed] of Object.entries(req)){
+      if(needed===0) continue;
+      db.prepare('UPDATE materials SET quantity=quantity-? WHERE owner_id=? AND name=?').run(needed,userId,mName);
+    }
+    const newLevel=land.level+1;
+    const newValue=Math.floor(landDef.price*(LEVEL_MULTIPLIERS[newLevel-1]||1));
+    db.prepare('UPDATE user_lands SET level=?,current_value=? WHERE id=?').run(newLevel,newValue,landDbId);
+    const newIncome=Math.floor(newValue*LAND_INCOME_RATE);
+    // أعد بناء الرسالة
+    const updatedUser=getUser(userId);
+    const rows2=[];
+    for(let pg=0;pg<2;pg++){
+      const row=new ActionRowBuilder();
+      LANDS_LIST.slice(pg*5,pg*5+5).forEach(l=>{
+        const canAfford=updatedUser.balance>=l.price;
+        row.addComponents(new ButtonBuilder().setCustomId(`buy_land_${l.id}_${userId}`).setLabel(`${l.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} ${fmt(l.price)}`).setStyle(canAfford?ButtonStyle.Success:ButtonStyle.Secondary).setDisabled(!canAfford));
+      });
+      rows2.push(row);
+    }
+    const myLands2=db.prepare('SELECT * FROM user_lands WHERE owner_id=? AND level < 10').all(userId);
+    if(myLands2.length>0){
+      const upRow2=new ActionRowBuilder();
+      myLands2.slice(0,5).forEach(l2=>{
+        const lDef2=LANDS_LIST.find(x=>x.id===l2.land_id);
+        const req2=UPGRADE_REQUIREMENTS[l2.level-1];
+        let canUp=true;
+        for(const [mn,nd] of Object.entries(req2)){if(nd===0)continue;const hv=db.prepare('SELECT quantity FROM materials WHERE owner_id=? AND name=?').get(userId,mn);if(!hv||hv.quantity<nd){canUp=false;break;}}
+        upRow2.addComponents(new ButtonBuilder().setCustomId(`upgrade_land_${l2.id}_${userId}`).setLabel(`⬆️ ${lDef2?.name.replace(/[🌱🌿🏞️🌄🏙️🌆🏗️🏢🌊👑]/g,'').trim()} Lv${l2.level}→${l2.level+1}`).setStyle(canUp?ButtonStyle.Primary:ButtonStyle.Secondary).setDisabled(!canUp));
+      });
+      rows2.push(upRow2);
+    }
+    const embed2=new EmbedBuilder().setTitle('🏞️ سوق الأراضي').setColor('#27ae60')
+      .setDescription(LANDS_LIST.map(l=>`${l.name} — 💰 ${fmt(l.price)} | 📈 ${fmt(Math.floor(l.price*LAND_INCOME_RATE))}/دقيقة`).join('\n'))
+      .setFooter({text:`✅ رُقّيت ${landDef?.name} إلى مستوى ${newLevel}! دخل جديد: ${fmt(newIncome)}/دقيقة`});
+    return interaction.update({embeds:[embed2],components:rows2});
+  }
+
+  // زر طلب الكمية (سوق المواد)
+  if(customId.startsWith('askqty_')) {
+    const parts=customId.split('_');
+    const matName=parts[1], userId=parts[2];
+    if(interaction.user.id!==userId) return interaction.reply({content:'❌ هذه الأزرار ليست لك!',ephemeral:true});
+    const isAll=(matName==='كل');
+    const promptText=isAll
+      ? `🛒 كتب الكمية التي تريد شراءها من **كل** المواد (مثال: 500)`
+      : `🛒 كتب الكمية التي تريد شراءها من **${matName}** (مثال: 1000)`;
+    await interaction.reply({content:promptText,ephemeral:false});
+    // انتظر رد المستخدم في نفس القناة
+    const channel=interaction.channel;
+    try {
+      const collected=await channel.awaitMessages({
+        filter: m=>m.author.id===userId,
+        max:1, time:30000, errors:['time']
+      });
+      const response=collected.first();
+      const qty=parseInt(response.content.trim());
+      if(isNaN(qty)||qty<=0){
+        return response.reply('❌ كمية غير صحيحة!').catch(()=>{});
+      }
+      // احسب التكلفة
+      const freshUser=getUser(userId,interaction.user.username);
+      let totalCost=0;
+      const matNames=Object.keys(MATERIALS_LIST);
+      if(isAll){
+        for(const n of matNames) totalCost+=MATERIALS_LIST[n].price*qty;
+      } else {
+        const info=MATERIALS_LIST[matName];
+        if(!info) return response.reply('❌ مادة غير موجودة!').catch(()=>{});
+        totalCost=info.price*qty;
+      }
+      if(freshUser.balance<totalCost){
+        return response.reply(`❌ رصيدك ما يكفي! تحتاج **${fmt(totalCost)}** وعندك **${fmt(freshUser.balance)}**`).catch(()=>{});
+      }
+      db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(totalCost,userId);
+      if(isAll){
+        for(const n of matNames){
+          const ex=db.prepare('SELECT * FROM materials WHERE owner_id=? AND name=?').get(userId,n);
+          if(ex) db.prepare('UPDATE materials SET quantity=quantity+? WHERE owner_id=? AND name=?').run(qty,userId,n);
+          else db.prepare('INSERT INTO materials (owner_id,name,quantity) VALUES (?,?,?)').run(userId,n,qty);
+        }
+        const desc=matNames.map(n=>`${MATERIALS_LIST[n].emoji} ${n}: ${qty.toLocaleString()}`).join(' | ');
+        await response.reply({embeds:[new EmbedBuilder().setTitle('✅ تم شراء المواد!').setColor('#e67e22')
+          .addFields({name:'📦 المواد',value:desc},{name:'💰 التكلفة',value:fmt(totalCost)},{name:'💳 رصيدك',value:fmt(freshUser.balance-totalCost)})]}).catch(()=>{});
+      } else {
+        const info=MATERIALS_LIST[matName];
+        const ex=db.prepare('SELECT * FROM materials WHERE owner_id=? AND name=?').get(userId,matName);
+        if(ex) db.prepare('UPDATE materials SET quantity=quantity+? WHERE owner_id=? AND name=?').run(qty,userId,matName);
+        else db.prepare('INSERT INTO materials (owner_id,name,quantity) VALUES (?,?,?)').run(userId,matName,qty);
+        await response.reply({embeds:[new EmbedBuilder().setTitle(`✅ تم الشراء!`).setColor('#e67e22')
+          .addFields({name:`${info.emoji} المادة`,value:matName,inline:true},{name:'📦 الكمية',value:qty.toLocaleString(),inline:true},{name:'💰 التكلفة',value:fmt(totalCost),inline:true},{name:'💳 رصيدك',value:fmt(freshUser.balance-totalCost),inline:true})]}).catch(()=>{});
+      }
+      // تحديث embed السوق
+      const updUser=getUser(userId);
+      const myMats2=db.prepare('SELECT * FROM materials WHERE owner_id=? AND quantity>0').all(userId);
+      const mm={};for(const m of myMats2)mm[m.name]=m.quantity;
+      const mn2=Object.keys(MATERIALS_LIST);
+      const r1=new ActionRowBuilder();
+      mn2.slice(0,3).forEach(n=>{const inf=MATERIALS_LIST[n];r1.addComponents(new ButtonBuilder().setCustomId(`askqty_${n}_${userId}`).setLabel(`${inf.emoji} ${n} — ${fmt(inf.price)}/وحدة`).setStyle(ButtonStyle.Primary));});
+      const r2=new ActionRowBuilder();
+      mn2.slice(3).forEach(n=>{const inf=MATERIALS_LIST[n];r2.addComponents(new ButtonBuilder().setCustomId(`askqty_${n}_${userId}`).setLabel(`${inf.emoji} ${n} — ${fmt(inf.price)}/وحدة`).setStyle(ButtonStyle.Primary));});
+      const rAll=new ActionRowBuilder();
+      rAll.addComponents(new ButtonBuilder().setCustomId(`askqty_كل_${userId}`).setLabel('🛒 شراء من الكل').setStyle(ButtonStyle.Success));
+      const sd=mn2.map(n=>{const inf=MATERIALS_LIST[n];return `${inf.emoji} **${n}**: ${(mm[n]||0).toLocaleString()} وحدة | ${fmt(inf.price)}/وحدة`;}).join('\n');
+      const emb=new EmbedBuilder().setTitle('🏪 سوق المواد').setColor('#e67e22').addFields({name:'📦 مخزونك الحالي',value:sd}).setFooter({text:`رصيدك: ${fmt(updUser.balance)} | ✅ تم شراء ${qty} ${isAll?'من كل مادة':matName}`});
+      interaction.message.edit({embeds:[emb],components:[r1,r2,rAll]}).catch(()=>{});
+    } catch(e) {
+      interaction.followUp({content:'⏰ انتهى الوقت! اكتب `سوق` مجدداً',ephemeral:true}).catch(()=>{});
+    }
+    return;
+  }
+
+  // أزرار التصفح القديمة
+  const [type,pageStr]=customId.split('_');
   if(pageStr==='info') return interaction.deferUpdate();
   const page=parseInt(pageStr); if(isNaN(page)) return;
-  if(type==='mines'){const p=Math.max(0,Math.min(page,Math.ceil(MINES_LIST.length/MINES_PER_PAGE)-1));const {embed,totalPages}=buildMinesEmbed(p);return interaction.update({embeds:[embed],components:[buildPageButtons(p,totalPages,'mines')]});}
+  if(type==='lands'){const LANDS_PER_PAGE=5;const totalLandPages=Math.ceil(LANDS_LIST.length/LANDS_PER_PAGE);const p=Math.max(0,Math.min(page,totalLandPages-1));const {embed,totalPages}=buildLandsEmbed(p);return interaction.update({embeds:[embed],components:[buildPageButtons(p,totalPages,'lands')]});}
 });
 
 function startTaxSystem() {
