@@ -6,7 +6,7 @@ const CONFIG = {
   ECONOMY_CHANNEL_ID: '1478138274546454732',
   LOG_CHANNEL_ID: '',
   OWNER_ID: '717481322683301940',
-  EXTRA_OWNERS: ['1412021840133492857' , '1027626650655019048'],
+  EXTRA_OWNERS: [],
 };
 
 const db = new Database('economy.db');
@@ -256,12 +256,12 @@ const REPUTATION_LEVELS = [
   { min: 100, max: 100, name: '💎 أسطورة',       blocked: false },
 ];
 
-const TRANSFER_COOLDOWN = 20 * 60 * 1000;
+const TRANSFER_COOLDOWN = 1 * 60 * 60 * 1000;
 const SLAVE_CUT         = 0.20;
 
 const COOLDOWNS = {
-  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 3*60*1000,
-  استثمر: 3*60*1000, تداول: 5*60*1000, سرقة: 15*60*1000,
+  راتب: 1*60*60*1000, عمل: 1*60*60*1000, مجازفة: 5*60*1000,
+  استثمر: 5*60*1000, تداول: 5*60*1000, سرقة: 15*60*1000,
 };
 
 function fmt(n) {
@@ -435,7 +435,7 @@ client.on('messageCreate', async (msg) => {
       try { client.users.fetch(target.id).then(u=>u.send(`💸 **تحويل جديد!**\n**${msg.author.username}** حوّل لك **${fmt(received)}** 💰`).catch(()=>{})).catch(()=>{}); } catch(e){}
       return msg.reply({embeds:[new EmbedBuilder().setTitle('✅ تم التحويل').setColor('#00ff88')
         .addFields({name:'📤 المرسل',value:msg.author.username,inline:true},{name:'📥 المستلم',value:target.username,inline:true},{name:'💰 المبلغ',value:fmt(amount),inline:true},{name:'💸 رسوم 2%',value:fmt(fee),inline:true},{name:'✅ وصل',value:fmt(received),inline:true})
-        .setFooter({text:'التحويل القادم بعد 20 دقيقه'})]});
+        .setFooter({text:'التحويل القادم بعد ساعة'})]});
     }
 
     // إيداع / سحب
@@ -475,7 +475,7 @@ client.on('messageCreate', async (msg) => {
         const boxType=args[1];
         const box=LOOT_BOXES[boxType];
         if(!box) return msg.reply(`❌ الأنواع المتاحة: ${Object.keys(LOOT_BOXES).map(k=>`\`${k}\``).join(' | ')}`);
-        const lootLeft=Math.max(0,3*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+        const lootLeft=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
         if(lootLeft>0) return msg.reply(`⏰ تقدر تشتري صندوق جديد بعد **${fmtTime(lootLeft)}**`);
         if(user.balance<box.price) return msg.reply(`❌ تحتاج **${fmt(box.price)}** لفتح صندوق ${boxType}`);
         db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(box.price,msg.author.id);
@@ -840,7 +840,7 @@ client.on('messageCreate', async (msg) => {
 
     // حماية
     if (cmd==='حماية') {
-      const opts={'6':{hours:6,price:5_000},'12':{hours:12,price:20_000},'24':{hours:24,price:150_000},'72':{hours:72,price:350_000}};
+      const opts={'6':{hours:6,price:5_000},'12':{hours:12,price:9_000},'24':{hours:24,price:15_000},'72':{hours:72,price:35_000}};
       const opt=opts[args[0]];
       if(!opt) return msg.reply('❌ الاستخدام: `حماية 6/12/24/72`\n6س=5K | 12س=9K | 24س=15K | 3أيام=35K');
       if(user.balance<opt.price) return msg.reply(`❌ تحتاج **${fmt(opt.price)}**`);
@@ -851,7 +851,7 @@ client.on('messageCreate', async (msg) => {
 
     // مجازفة
 if (cmd==='مجازفة') {
-  const left=cooldownLeft(user,'مجازفة'); if(left>0) return msg.reply(⏰ انتظر **${fmtTime(left)}**);
+  const left=cooldownLeft(user,'مجازفة'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance);
   if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: مجازفة [مبلغ/نص/ربع/كل] (الحد الأدنى 100)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
@@ -869,7 +869,7 @@ if (cmd==='مجازفة') {
 
 // استثمر
 if (cmd==='استثمر') {
-  const left=cooldownLeft(user,'استثمر'); if(left>0) return msg.reply(⏰ انتظر **${fmtTime(left)}**);
+  const left=cooldownLeft(user,'استثمر'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance), riskKey=args[1]||'منخفض';
   if(isNaN(amount)||amount<1000) return msg.reply('❌ الاستخدام: استثمر [مبلغ] [منخفض/متوسط/عالي]');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
@@ -894,7 +894,7 @@ if (cmd==='استثمر') {
 
 // تداول
 if (cmd==='تداول') {
-  const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply(⏰ انتظر **${fmtTime(left)}**);
+  const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance);
   if(isNaN(amount)||amount<500) return msg.reply('❌ الاستخدام: تداول [مبلغ] (الحد الأدنى 500)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
@@ -1077,7 +1077,7 @@ if(rawChange>0){
         {name:'🦹 سرقة',value:cooldownLeft(user,'سرقة')>0?`⏰ ${fmtTime(cooldownLeft(user,'سرقة'))}`:'✅ جاهز',inline:true},
         {name:'💸 تحويل',value:tranLeft>0?`⏰ ${fmtTime(tranLeft)}`:'✅ جاهز',inline:true},
       ];
-      const lootCooldown=Math.max(0,3*60*60*1000-(Date.now()-(user.last_lootbox||0)));
+      const lootCooldown=Math.max(0,5*60*60*1000-(Date.now()-(user.last_lootbox||0)));
       fields.push({name:'🎁 صندوق',value:lootCooldown>0?`⏰ ${fmtTime(lootCooldown)}`:'✅ جاهز',inline:true});
       const loanCooldown2=Math.max(0,24*60*60*1000-(Date.now()-(user.last_loan||0)));
       fields.push({name:'🏦 قرض',value:loanCooldown2>0?`⏰ ${fmtTime(loanCooldown2)}`:'✅ جاهز',inline:true});
