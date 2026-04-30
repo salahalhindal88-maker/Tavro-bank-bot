@@ -851,7 +851,7 @@ client.on('messageCreate', async (msg) => {
 
     // مجازفة
 if (cmd==='مجازفة') {
-  const left=cooldownLeft(user,'مجازفة'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'مجازفة'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance);
   if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: مجازفة [مبلغ/نص/ربع/كل] (الحد الأدنى 100)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
@@ -869,7 +869,7 @@ if (cmd==='مجازفة') {
 
 // استثمر
 if (cmd==='استثمر') {
-  const left=cooldownLeft(user,'استثمر'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'استثمر'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance), riskKey=args[1]||'منخفض';
   if(isNaN(amount)||amount<1000) return msg.reply('❌ الاستخدام: استثمر [مبلغ] [منخفض/متوسط/عالي]');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
@@ -894,7 +894,7 @@ if (cmd==='استثمر') {
 
 // تداول
 if (cmd==='تداول') {
-  const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply('**⏰ انتظر **${fmtTime(left)}**');
+  const left=cooldownLeft(user,'تداول'); if(left>0) return msg.reply('⏰ انتظر **${fmtTime(left)}**');
   const amount=parseAmount(args[0],user.balance);
   if(isNaN(amount)||amount<500) return msg.reply('❌ الاستخدام: تداول [مبلغ] (الحد الأدنى 500)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
