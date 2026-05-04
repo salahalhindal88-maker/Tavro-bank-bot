@@ -114,7 +114,7 @@ const LOOT_BOXES = {
     emoji: '🥈',
     color: '#bdc3c7',
     prizes: [
-      { name: 'فلوس قليلة',   type: 'money',      value: 10_000,    chance: 38 },
+      { name: 'فلوس قليلة',   type: 'money',      value: 10_000,    chance: 39 },
       { name: 'فلوس جيدة',   type: 'money',      value: 30_000,   chance: 27 },
       { name: 'حماية 24س',   type: 'protection', value: 24,       chance: 20 },
       { name: 'فلوس كبيرة',  type: 'money',      value: 80_000,   chance: 15 },
