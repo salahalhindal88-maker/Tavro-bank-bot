@@ -101,12 +101,12 @@ const LOOT_BOXES = {
     emoji: '📦',
     color: '#95a5a6',
     prizes: [
-      { name: 'فلوس صغيرة',  type: 'money',      value: 1_000,   chance: 40 }, // أقل من السعر دائماً
-      { name: 'فلوس متوسطة', type: 'money',      value: 3_000,   chance: 25 },
-      { name: 'فلوس جيدة',   type: 'money',      value: 7_000,   chance: 18 },
+      { name: 'فلوس صغيرة',  type: 'money',      value: 2_000,   chance: 40 }, // أقل من السعر دائماً
+      { name: 'فلوس متوسطة', type: 'money',      value: 4_000,   chance: 25 },
+      { name: 'فلوس جيدة',   type: 'money',      value: 10_000,   chance: 18 },
       { name: 'حماية 6س',    type: 'protection', value: 6,       chance: 10 },
       { name: 'فلوس كبيرة',  type: 'money',      value: 30_000,  chance: 5  },
-      { name: 'جائزة نادرة', type: 'money',      value: 150_000, chance: 2  },
+      { name: 'جائزة نادرة', type: 'money',      value: 80_000, chance: 2  },
     ]
   },
   فضي: {
@@ -114,38 +114,38 @@ const LOOT_BOXES = {
     emoji: '🥈',
     color: '#bdc3c7',
     prizes: [
-      { name: 'فلوس قليلة',   type: 'money',      value: 8_000,    chance: 35 },
-      { name: 'فلوس جيدة',   type: 'money',      value: 20_000,   chance: 25 },
-      { name: 'حماية 24س',   type: 'protection', value: 24,       chance: 18 },
-      { name: 'فلوس كبيرة',  type: 'money',      value: 80_000,   chance: 12 },
-      { name: 'جائزة نادرة', type: 'money',      value: 300_000,  chance: 7  },
-      { name: 'جائزة أسطورية',type:'money',       value: 1_500_000,chance: 3  },
+      { name: 'فلوس قليلة',   type: 'money',      value: 10_000,    chance: 38 },
+      { name: 'فلوس جيدة',   type: 'money',      value: 30_000,   chance: 27 },
+      { name: 'حماية 24س',   type: 'protection', value: 24,       chance: 20 },
+      { name: 'فلوس كبيرة',  type: 'money',      value: 80_000,   chance: 15 },
+      { name: 'جائزة نادرة', type: 'money',      value: 200_000,  chance: 10  },
+      { name: 'جائزة أسطورية',type:'money',       value: 750_000,chance: 7  },
     ]
   },
   ذهبي: {
-    price: 100_000,
+    price: 500_000,
     emoji: '🥇',
     color: '#f1c40f',
     prizes: [
-      { name: 'فلوس متوسطة',  type: 'money',      value: 30_000,    chance: 30 },
-      { name: 'فلوس كبيرة',   type: 'money',      value: 100_000,   chance: 25 },
+      { name: 'فلوس متوسطة',  type: 'money',      value: 100_000,    chance: 30 },
+      { name: 'فلوس كبيرة',   type: 'money',      value: 200_000,   chance: 25 },
       { name: 'حماية 72س',    type: 'protection', value: 72,        chance: 20 },
       { name: 'جائزة نادرة',  type: 'money',      value: 600_000,   chance: 15 },
-      { name: 'جائزة أسطورية',type: 'money',      value: 3_000_000, chance: 7  },
-      { name: 'جائزة إمبراطور',type:'money',       value: 15_000_000,chance: 3  },
+      { name: 'جائزة أسطورية',type: 'money',      value: 2_000_000, chance: 7  },
+      { name: 'جائزة إمبراطور',type:'money',       value: 5_000_000,chance: 3  },
     ]
   },
   أسطوري: {
-    price: 500_000,
+    price: 1_500_000,
     emoji: '💎',
     color: '#9b59b6',
     prizes: [
       { name: 'فلوس جيدة',     type: 'money',      value: 200_000,   chance: 30 },
       { name: 'جائزة نادرة',   type: 'money',      value: 1_000_000, chance: 25 },
       { name: 'جائزة أسطورية', type: 'money',      value: 6_000_000, chance: 20 },
-      { name: 'جائزة إمبراطور',type: 'money',      value: 30_000_000,chance: 13 },
+      { name: 'جائزة إمبراطور',type: 'money',      value: 3_000_000,chance: 13 },
       { name: 'حماية 72س',     type: 'protection', value: 72,        chance: 7  },
-      { name: 'الجائزة الكبرى',type: 'money',      value: 150_000_000,chance: 5 },
+      { name: 'الجائزة الكبرى',type: 'money',      value: 15_000_000,chance: 5 },
     ]
   },
 };
@@ -234,14 +234,14 @@ function buildLandsEmbed(page) {
 }
 
 const LEVELS = [
-  { level: 1, min: 0,           name: '👶 مبتدئ',     salary: 1_000 },
-  { level: 2, min: 10_000,      name: '🧑 عامل',      salary: 2_000 },
-  { level: 3, min: 50_000,      name: '💼 موظف',      salary: 2_700 },
-  { level: 4, min: 200_000,     name: '📊 مدير',      salary: 6_900 },
-  { level: 5, min: 1_000_000,   name: '🏢 رجل أعمال', salary: 15_000 },
-  { level: 6, min: 5_000_000,   name: '💎 ثري',       salary: 40_000 },
-  { level: 7, min: 20_000_000,  name: '👑 مليونير',   salary: 100_000 },
-  { level: 8, min: 100_000_000, name: '🌟 إمبراطور',  salary: 300_000 },
+  { level: 1, min: 0,           name: '👶 مبتدئ',     salary: 1_500 },
+  { level: 2, min: 10_000,      name: '🧑 عامل',      salary: 2_500 },
+  { level: 3, min: 50_000,      name: '💼 موظف',      salary: 3_700 },
+  { level: 4, min: 200_000,     name: '📊 مدير',      salary: 7_900 },
+  { level: 5, min: 1_000_000,   name: '🏢 رجل أعمال', salary: 20_000 },
+  { level: 6, min: 5_000_000,   name: '💎 ثري',       salary: 60_000 },
+  { level: 7, min: 20_000_000,  name: '👑 مليونير',   salary: 150_000 },
+  { level: 8, min: 100_000_000, name: '🌟 إمبراطور',  salary: 500_000 },
 ];
 
 const REPUTATION_LEVELS = [
@@ -903,9 +903,9 @@ if (cmd==='استثمر') {
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
 
   const risks={
-    منخفض:{winChance:0.50,minG:0.05,maxG:0.15,maxL:0.12},
-    متوسط:{winChance:0.50,minG:0.15,maxG:0.45,maxL:0.30},
-    عالي: {winChance:0.48,minG:0.50,maxG:1.20,maxL:0.60},
+    منخفض:{winChance:0.50,minG:0.10,maxG:0.15,maxL:0.12},
+    متوسط:{winChance:0.50,minG:0.20,maxG:0.45,maxL:0.30},
+    عالي: {winChance:0.50,minG:0.80,maxG:1.20,maxL:0.60},
   };
 
   const cfg=risks[riskKey]||risks['منخفض'];
@@ -964,7 +964,7 @@ if (cmd==='تداول') {
   let rawChange, result;
 
   // 25% موجة صعود | 25% ارتفاع بسيط | 25% تراجع | 25% انهيار
-  if(roll>0.75){
+  if(roll>0.60){
     rawChange=Math.floor(amount*(0.3+Math.random()*0.4));
     result='📈 موجة صعود!';
   }
@@ -972,7 +972,7 @@ if (cmd==='تداول') {
     rawChange=Math.floor(amount*(0.05+Math.random()*0.10));
     result='📊 ارتفاع بسيط';
   }
-  else if(roll>0.25){
+  else if(roll>0.45){
     rawChange=-Math.floor(amount*(0.15+Math.random()*0.20));
     result='📉 تراجع طفيف';
   }
@@ -1028,7 +1028,7 @@ if (cmd==='تداول') {
       const victim=db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
       if(!victim||victim.balance<500) return msg.reply('😅 الضحية فقيرة!');
       if(victim.protection_until>Date.now()){db.prepare('UPDATE users SET reputation=MAX(0,reputation-5) WHERE id=?').run(msg.author.id);return msg.reply(`🛡 **${target.username}** محمي! -5 سمعة!`);}
-      const success=Math.random()>0.65; // 35% احتمال نجاح فقط
+      const success=Math.random()>0.60; // 40% احتمال نجاح فقط
       db.prepare('UPDATE users SET last_rob=? WHERE id=?').run(Date.now(),msg.author.id);
       if(success){
         let stolen=Math.floor(Math.random()*victim.balance*0.10)+50; // يسرق 10% بدل 15%
