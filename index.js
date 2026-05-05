@@ -903,8 +903,8 @@ if (cmd==='استثمر') {
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
 
   const risks={
-    منخفض:{winChance:0.50,minG:0.10,maxG:0.15,maxL:0.12},
-    متوسط:{winChance:0.50,minG:0.20,maxG:0.45,maxL:0.30},
+    منخفض:{winChance:0.49,minG:0.10,maxG:0.15,maxL:0.12},
+    متوسط:{winChance:0.49,minG:0.20,maxG:0.45,maxL:0.30},
     عالي: {winChance:0.49,minG:0.80,maxG:1.20,maxL:0.60},
   };
 
@@ -964,11 +964,11 @@ if (cmd==='تداول') {
   let rawChange, result;
 
   // 25% موجة صعود | 25% ارتفاع بسيط | 25% تراجع | 25% انهيار
-  if(roll>0.57){
-    rawChange=Math.floor(amount*(0.3+Math.random()*0.6));
+  if(roll>0.50){
+    rawChange=Math.floor(amount*(0.3+Math.random()*0.5));
     result='📈 موجة صعود!';
   }
-  else if(roll>0.55){
+  else if(roll>0.53){
     rawChange=Math.floor(amount*(0.05+Math.random()*0.12));
     result='📊 ارتفاع بسيط';
   }
