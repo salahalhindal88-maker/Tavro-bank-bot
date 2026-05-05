@@ -903,8 +903,8 @@ if (cmd==='استثمر') {
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
 
   const risks={
-    منخفض:{winChance:0.50,minG:0.10,maxG:0.15,maxL:0.12},
-    متوسط:{winChance:0.50,minG:0.20,maxG:0.45,maxL:0.30},
+    منخفض:{winChance:0.55,minG:0.10,maxG:0.15,maxL:0.12},
+    متوسط:{winChance:0.54,minG:0.20,maxG:0.45,maxL:0.30},
     عالي: {winChance:0.50,minG:0.80,maxG:1.20,maxL:0.60},
   };
 
@@ -964,20 +964,20 @@ if (cmd==='تداول') {
   let rawChange, result;
 
   // 25% موجة صعود | 25% ارتفاع بسيط | 25% تراجع | 25% انهيار
-  if(roll>0.60){
-    rawChange=Math.floor(amount*(0.3+Math.random()*0.4));
+  if(roll>0.65){
+    rawChange=Math.floor(amount*(0.3+Math.random()*1.2));
     result='📈 موجة صعود!';
   }
-  else if(roll>0.50){
-    rawChange=Math.floor(amount*(0.05+Math.random()*0.10));
+  else if(roll>0.55){
+    rawChange=Math.floor(amount*(0.05+Math.random()*0.12));
     result='📊 ارتفاع بسيط';
   }
   else if(roll>0.45){
-    rawChange=-Math.floor(amount*(0.15+Math.random()*0.20));
+    rawChange=-Math.floor(amount*(0.15+Math.random()*0.17));
     result='📉 تراجع طفيف';
   }
   else{
-    rawChange=-Math.floor(amount*(0.35+Math.random()*0.45));
+    rawChange=-Math.floor(amount*(0.20+Math.random()*0.30));
     result='💥 انهيار!';
   }
 
