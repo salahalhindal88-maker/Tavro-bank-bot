@@ -858,7 +858,7 @@ if (cmd==='مجازفة') {
   if(isNaN(amount)||amount<100) return msg.reply('❌ الاستخدام: `مجازفة [مبلغ/نص/ربع/كل]` (الحد الأدنى 100)');
   if(user.balance<amount) return msg.reply('❌ رصيدك ما يكفي!');
 
-  const win=Math.random()>0.52; // 50% ربح فقط
+  const win=Math.random()>0.51; // 50% ربح فقط
   db.prepare('UPDATE users SET last_gamble=? WHERE id=?').run(Date.now(),msg.author.id);
 
   if(win){
@@ -904,8 +904,8 @@ if (cmd==='استثمر') {
 
   const risks={
     منخفض:{winChance:0.50,minG:0.10,maxG:0.15,maxL:0.12},
-    متوسط:{winChance:0.52,minG:0.20,maxG:0.45,maxL:0.30},
-    عالي: {winChance:0.55,minG:0.80,maxG:1.20,maxL:0.60},
+    متوسط:{winChance:0.50,minG:0.20,maxG:0.45,maxL:0.30},
+    عالي: {winChance:0.49,minG:0.80,maxG:1.20,maxL:0.60},
   };
 
   const cfg=risks[riskKey]||risks['منخفض'];
@@ -965,7 +965,7 @@ if (cmd==='تداول') {
 
   // 25% موجة صعود | 25% ارتفاع بسيط | 25% تراجع | 25% انهيار
   if(roll>0.57){
-    rawChange=Math.floor(amount*(0.3+Math.random()*1.2));
+    rawChange=Math.floor(amount*(0.3+Math.random()*0.6));
     result='📈 موجة صعود!';
   }
   else if(roll>0.55){
