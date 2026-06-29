@@ -964,7 +964,7 @@ if (cmd==='تداول') {
   let rawChange, result;
 
   // 25% موجة صعود | 25% ارتفاع بسيط | 25% تراجع | 25% انهيار
-  if(roll>0.60){
+  if(roll>0.63){
     rawChange=Math.floor(amount*(0.3+Math.random()*0.7));
     result='📈 موجة صعود!';
   }
