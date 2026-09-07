@@ -305,7 +305,7 @@ function rollPrize(prizes) {
 
 const client = new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent,GatewayIntentBits.GuildMembers]});
 client.once('ready', () => {
-  console.log(`✅ إمبراطورية tavro شغالة: ${client.user.tag}`);
+  console.log(`✅ إمبراطورية الأعمال شغالة: ${client.user.tag}`);
   startPassiveIncomeSystem();
   startStockDriftSystem();
 });
@@ -442,9 +442,9 @@ client.on('messageCreate', async (msg) => {
       return msg.reply({embeds:[new EmbedBuilder().setTitle('✅ تم السداد!').setColor('#00ff88').setDescription(`سددت **${fmt(loan)}**\n⭐ +5 ائتمان`)]});
     }
     if (cmd==='حماية') {
-      const opts = {'6':{h:6,p:10_000},'12':{h:12,p:35_000},'24':{h:24,p:150_000}};
+      const opts = {'6':{h:6,p:7_000},'12':{h:12,p:35_000},'24':{h:24,p:150_000}};
       const opt = opts[args[0]];
-      if (!opt) return msg.reply('❌ `حماية 6/12/24`');
+      if (!opt) return msg.reply('❌ `حماية 6/12/24/72`');
       if (user.cash<opt.p) return msg.reply(`❌ تحتاج **${fmt(opt.p)}**`);
       const until = Date.now()+opt.h*3600000;
       db.prepare('UPDATE users SET cash=cash-?, protection_until=? WHERE id=?').run(opt.p,until,msg.author.id);
@@ -633,9 +633,7 @@ client.on('messageCreate', async (msg) => {
       const existing = db.prepare('SELECT * FROM user_stocks WHERE owner_id=? AND symbol=?').get(msg.author.id,symbol);
       if (existing) db.prepare('UPDATE user_stocks SET shares=shares+? WHERE owner_id=? AND symbol=?').run(qty,msg.author.id,symbol);
       else db.prepare('INSERT INTO user_stocks (owner_id,symbol,shares) VALUES (?,?,?)').run(msg.author.id,symbol,qty);
-      // ضغط شراء يرفع السعر قليلاً
-      const newPrice = Math.floor(stock.price*(1+0.001*qty));
-      db.prepare('UPDATE stocks SET price=? WHERE symbol=?').run(Math.min(newPrice,stock.price*3),symbol);
+      // ملاحظة: السعر يتحرك فقط عبر التذبذب الطبيعي التلقائي (كل 10 دقائق)، لا يتأثر بصفقة واحدة لمنع المضاربة الفورية
       return msg.reply({embeds:[new EmbedBuilder().setTitle(`✅ اشتريت ${qty} سهم ${symbol}`).setColor('#00ff88').setDescription(`التكلفة: **${fmt(cost)}**`)]});
     }
 
@@ -645,13 +643,14 @@ client.on('messageCreate', async (msg) => {
       if (!stock) return msg.reply('❌ رمز غير موجود!');
       const holding = db.prepare('SELECT * FROM user_stocks WHERE owner_id=? AND symbol=?').get(msg.author.id,symbol);
       if (!holding||holding.shares<qty) return msg.reply(`❌ ماعندك ${qty} سهم ${symbol}!`);
-      const revenue = stock.price*qty;
+      // رسوم بيع 4% (حماية إضافية ضد أي مضاربة سريعة)
+      const sellFee = Math.floor(stock.price*qty*0.04);
+      const revenue = stock.price*qty - sellFee;
       db.prepare('UPDATE user_stocks SET shares=shares-? WHERE owner_id=? AND symbol=?').run(qty,msg.author.id,symbol);
       db.prepare('UPDATE users SET cash=cash+? WHERE id=?').run(revenue,msg.author.id);
-      // ضغط بيع يخفض السعر قليلاً
-      const newPrice = Math.floor(stock.price*(1-0.001*qty));
-      db.prepare('UPDATE stocks SET price=? WHERE symbol=?').run(Math.max(newPrice,Math.floor(stock.price*0.3)),symbol);
-      return msg.reply({embeds:[new EmbedBuilder().setTitle(`💰 بعت ${qty} سهم ${symbol}`).setColor('#ffd700').setDescription(`استلمت **${fmt(revenue)}**`)]});
+      db.prepare('UPDATE treasury SET amount=amount+? WHERE id=1').run(sellFee);
+      // ملاحظة: السعر يتحرك فقط عبر التذبذب الطبيعي التلقائي (كل 10 دقائق)
+      return msg.reply({embeds:[new EmbedBuilder().setTitle(`💰 بعت ${qty} سهم ${symbol}`).setColor('#ffd700').setDescription(`استلمت **${fmt(revenue)}** (بعد رسوم 4%)`)]});
     }
 
     if (cmd==='محفظتي') {
@@ -678,7 +677,7 @@ client.on('messageCreate', async (msg) => {
       const victim = db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
       if (!victim||victim.cash<500) return msg.reply('😅 ماعنده نقد كافي!');
       if (victim.protection_until>Date.now()) { db.prepare('UPDATE users SET credit_score=MAX(0,credit_score-5) WHERE id=?').run(msg.author.id); return msg.reply(`🛡 **${target.username}** محمي! -5 ائتمان`); }
-      const success = Math.random()>0.50;
+      const success = Math.random()>0.55; // نجاح 45% | فشل 55%
       db.prepare('UPDATE users SET last_sabotage=? WHERE id=?').run(Date.now(),msg.author.id);
       if (success) {
         const stolen = Math.floor(Math.random()*victim.cash*0.10)+50;
@@ -706,7 +705,7 @@ client.on('messageCreate', async (msg) => {
       const caseId = db.prepare('SELECT last_insert_rowid() as id').get().id;
       const targetUser = db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
       const lawyerBonus = user.career==='محامي' ? 0.15 : 0;
-      const winChance = Math.min(0.85, 0.5+(100-targetUser.credit_score)*0.004+lawyerBonus);
+      const winChance = Math.min(0.80, 0.45+(100-targetUser.credit_score)*0.004+lawyerBonus); // أساس فوز 45%
       const win = Math.random()<winChance;
       const award = record.amount*3;
       if (win) {
@@ -805,7 +804,7 @@ client.on('messageCreate', async (msg) => {
       const market = db.prepare('SELECT * FROM markets WHERE id=?').get(marketId);
       if (!market) return msg.reply('❌ سوق غير موجود!');
       if (market.controlled_by===alliance.id) return msg.reply('✅ أنت مسيطر عليه بالفعل!');
-      const success = Math.random()>0.5;
+      const success = Math.random()>0.55; // نجاح 45% | فشل 55%
       if (success) {
         db.prepare('UPDATE markets SET controlled_by=? WHERE id=?').run(alliance.id,marketId);
         db.prepare('UPDATE alliances SET wins=wins+1 WHERE id=?').run(alliance.id);
@@ -837,11 +836,12 @@ client.on('messageCreate', async (msg) => {
       const field = fieldName ? CONTRACT_FIELDS.find(f=>f.name.includes(fieldName)) : CONTRACT_FIELDS[Math.floor(Math.random()*CONTRACT_FIELDS.length)];
       if (fieldName && !field) return msg.reply('❌ مجال غير موجود! اكتب `المجالات`');
       const selected = field || CONTRACT_FIELDS[0];
+      // كل مستوى: 55% خسارة | 45% ربح — أقصى ربح ممكن +50% | أقصى خسارة ممكنة -70%
       const riskProfiles = {
-        منخفض: [{r:'فشل',p:-0.35,c:10},{r:'خسارة',p:-0.12,c:35},{r:'عادي',p:0.02,c:25},{r:'جيد',p:0.10,c:20},{r:'ممتاز',p:0.25,c:8},{r:'استثنائي',p:0.50,c:2}],
-        متوسط: [{r:'فشل',p:-0.45,c:15},{r:'خسارة',p:-0.20,c:40},{r:'عادي',p:0.03,c:20},{r:'جيد',p:0.18,c:15},{r:'ممتاز',p:0.45,c:7},{r:'استثنائي',p:0.90,c:3}],
-        عالي:  [{r:'فشل',p:-0.65,c:20},{r:'خسارة',p:-0.30,c:45},{r:'عادي',p:0.04,c:10},{r:'جيد',p:0.25,c:12},{r:'ممتاز',p:0.70,c:8},{r:'استثنائي',p:1.30,c:5}],
-        خطر:   [{r:'فشل',p:-1.00,c:50},{r:'خسارة',p:-0.60,c:25},{r:'عادي',p:0.08,c:8},{r:'جيد',p:0.40,c:8},{r:'ممتاز',p:1.00,c:5},{r:'استثنائي',p:2.50,c:4}],
+        منخفض: [{r:'فشل',p:-0.30,c:12},{r:'خسارة',p:-0.10,c:43},{r:'عادي',p:0.02,c:20},{r:'جيد',p:0.10,c:16},{r:'ممتاز',p:0.20,c:7},{r:'استثنائي',p:0.35,c:2}],
+        متوسط: [{r:'فشل',p:-0.50,c:15},{r:'خسارة',p:-0.20,c:40},{r:'عادي',p:0.03,c:20},{r:'جيد',p:0.15,c:15},{r:'ممتاز',p:0.30,c:7},{r:'استثنائي',p:0.45,c:3}],
+        عالي:  [{r:'فشل',p:-0.65,c:17},{r:'خسارة',p:-0.35,c:38},{r:'عادي',p:0.05,c:13},{r:'جيد',p:0.20,c:15},{r:'ممتاز',p:0.35,c:10},{r:'استثنائي',p:0.50,c:7}],
+        خطر:   [{r:'فشل',p:-0.70,c:37},{r:'خسارة',p:-0.45,c:18},{r:'عادي',p:0.08,c:14},{r:'جيد',p:0.25,c:15},{r:'ممتاز',p:0.40,c:9},{r:'استثنائي',p:0.50,c:7}],
       };
       const profile = riskProfiles[selected.risk]||riskProfiles['متوسط'];
       const totalC = profile.reduce((s,p)=>s+p.c,0);
@@ -936,7 +936,7 @@ client.on('messageCreate', async (msg) => {
     }
 
     if (cmd==='اوامر'||cmd==='أوامر') {
-      return msg.reply({embeds:[new EmbedBuilder().setTitle('📋 tavro أوامر إمبراطورية').setColor('#4e8aff')
+      return msg.reply({embeds:[new EmbedBuilder().setTitle('📋 اوامر امبراطوريه tavro').setColor('#4e8aff')
         .addFields(
           {name:'👤 الحساب',value:'`ملفي` `رصيد` `وقت` `ائتمان`'},
           {name:'💼 المهنة',value:'`المهن` `مهنة [اسم]` `عمل`'},
