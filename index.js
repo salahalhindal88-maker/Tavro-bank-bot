@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const Database = require('better-sqlite3');
@@ -7,7 +6,7 @@ const CONFIG = {
   ECONOMY_CHANNEL_ID: '1478138274546454732',
   LOG_CHANNEL_ID: '',
   OWNER_ID: '717481322683301940',
-  EXTRA_OWNERS: ['1412021840133492857', '1027626650655019048'],
+  EXTRA_OWNERS: [],
 };
 
 const db = new Database('economy.db');
@@ -467,7 +466,6 @@ client.on('messageCreate', async (msg) => {
         getUser(target.id,target.username);
         db.prepare('UPDATE users SET balance=balance-? WHERE id=?').run(amount,msg.author.id);
         db.prepare('INSERT OR REPLACE INTO slaves (slave_id,owner_id,buy_price) VALUES (?,?,?)').run(target.id,msg.author.id,amount);
-        try { client.users.fetch(target.id).then(u=>u.send(`⛓️ **تم شراؤك!**\n**${msg.author.username}** اشتراك بـ **${fmt(amount)}**\nيأخذ 20% من كل أرباحك.\nللتحرر: \`تحرير\` وادفع **${fmt(amount*2)}**`).catch(()=>{})).catch(()=>{}); } catch(e){}
         return msg.reply({embeds:[new EmbedBuilder().setTitle('⛓️ تم الشراء!').setColor('#ff6b35')
           .addFields({name:'👤 المشترى',value:target.username,inline:true},{name:'💰 السعر',value:fmt(amount),inline:true},{name:'📊 نسبة الأرباح',value:'20% من كل شيء',inline:false},{name:'🔓 للتحرر',value:`${fmt(amount*2)}`,inline:false})
           .setFooter({text:'ما يقدر يتحرر إلا بالدفع!'})]});
